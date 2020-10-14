@@ -1,7 +1,7 @@
-name: "tcga_micro"
+name: tcga_micro
 output_dir: ../docs
 navbar:
-  title: "tcga_micro"
+  title: tcga_micro
   left:
   - text: Home
     href: index.html
@@ -9,6 +9,10 @@ navbar:
     href: about.html
   - text: License
     href: license.html
+  right:
+  - icon: fa-github
+    text: Source code
+    href: https://github.com/mleukam/tcga_micro
 output:
   workflowr::wflow_html:
     toc: yes
