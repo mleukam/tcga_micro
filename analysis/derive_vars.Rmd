@@ -1,0 +1,198 @@
+---
+title: "derive_vars"
+author: "Michael Leukam"
+date: "2020-09-12"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+## Setup
+Clear the workspace and set seed
+```{r}
+rm(list=ls())
+set.seed(818)
+```
+
+Read in packages
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+```
+
+Read in data
+From tcga_data_prep
+```{r}
+tcga_counts <- readRDS("data/tcga_counts_list.rds")
+genus_tbl <- tcga_counts$counts$genus$STAD
+```
+
+```{bash}
+sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/ ~/sshfs_mount/TCGA
+
+cd ~/sshfs_mount/TCGA/TCGA_STAD/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/Analysis/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/taxonomic_ranks
+
+results_tab <- read_tsv("results.tab")
+
+```
+
+```{r}
+tax_ranks_example <- read_tsv("~/sshfs_mount/TCGA/TCGA_STAD/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/Analysis/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/taxonomic_ranks/results.tab") %>%
+  dplyr::select(-NumCounts) %>%
+  mutate(TaxID = as.integer(TaxID)) %>%
+  print()
+
+
+```
+
+Goal:
+% microbial vs total reads
+% microbial vs uniquely mapped on human reads
+% viral (as above)
+bacteria vs microbes
+Number of different species
+Genera, species, strains per million reads mapped on human
+Genera, species, strain diversity and distribution descriptors (Shannon, Simpson, etc)
+Genera abundance, species abundance, and strain abundance as correlates
+
+## Descriptive Statistics
+
+#### Distribution
+```{r}
+# get sublists of counts for downstream application
+genus_list <- tcga_counts$counts$genus
+species_list <- tcga_counts$counts$species
+taxid_list <- tcga_counts$counts$taxid
+```
+
+Visualize distribution
+```{r}
+# make tidy dataframe for plotting
+# run this on the genus sublist
+tidy_generator <- function(listelement){
+  listelement %>% 
+    pivot_longer(-tcga_barcode, names_to = "genus", values_to = "counts") %>%
+    arrange(desc(counts))
+}
+tidy_genera <- map(genus_list, tidy_generator)
+
+# counts distribution
+counts_dist_plotter <- function(df){
+  plot <- df %>%
+    ggplot(aes(x = counts, color = tcga_barcode)) +
+      geom_density() +
+      theme(legend.position = "none") +
+      ggtitle("Counts Distribution by Genus")
+  
+}
+
+dist_plot_list <- map(tidy_genera, counts_dist_plotter)
+ggarrange(dist_plot_list[[1]],
+          dist_plot_list[[2]],
+          dist_plot_list[[3]],
+          dist_plot_list[[4]],
+          dist_plot_list[[5]],
+          dist_plot_list[[6]],
+          dist_plot_list[[7]])
+          
+# counts distribution
+log_dist_plotter <- function(df){
+  plot <- df %>%
+    mutate(lcounts = log(counts)) %>%
+    dplyr::filter(lcounts > -100) %>%
+    ggplot(aes(x = lcounts), color = tcga_barcode) +
+      geom_density() +
+      theme(legend.position = "none") +
+      expand_limits(x = c(-20, 30))
+}
+
+log_plot_list <- map(tidy_genera, log_dist_plotter)
+names(log_plot_list) <- names(tidy_genera)
+ggarrange(log_plot_list[[1]],
+          log_plot_list[[2]],
+          log_plot_list[[3]],
+          log_plot_list[[4]],
+          log_plot_list[[5]],
+          log_plot_list[[6]],
+          log_plot_list[[7]],
+          labels = names(log_plot_list))
+```
+
+## Derive new variables
+
+#### Alpha diversity
+
+```{r}
+# get counts in matrix form 
+make_counts_df <- function(df){
+  df %>%
+    dplyr::group_by(tcga_barcode) %>%
+    summarise_all(sum) %>%
+    as.data.frame() %>%
+    column_to_rownames(var = "tcga_barcode")
+}
+genus_df_list <- map(genus_list, make_counts_df)
+species_df_list <- map(species_list, make_counts_df)
+taxid_df_list <- map(taxid_list, make_counts_df)
+
+# get measures of alpha-diversity
+alpha_getter <- function(df){
+  # get basic diversity indices
+  shannon <- df %>% 
+    diversity(., index = "shannon") %>%
+    enframe() %>%
+    rename(shannon = value)
+  simpson <- df %>%
+    diversity(., index = "simpson") %>%
+    enframe() %>%
+    rename(simpson = value)
+  invsimpson <- df %>%
+    diversity(., index = "invsimpson") %>%
+    enframe() %>%
+    rename(invsimpson = value)
+  # get pielou evenness measure
+  shanvect <- df %>%
+    diversity(., index = "shannon")
+  pielou <- tibble::enframe(shanvect/log(specnumber(df))) %>%
+    rename(pielou_evenness = value)
+  # get rarefied richness
+  df_round <- df %>%
+    as.matrix() %>%
+    round(., digits = 0)
+  rar <- rarefy(df_round, min(rowSums(df_round))) %>%
+    enframe() %>%
+    rename(rar_rich = value)
+  # join columns in single tbl
+  alpha_df <- shannon %>%
+    left_join(simpson, by = "name") %>%
+    left_join(invsimpson, by = "name") %>%
+    left_join(pielou, by = "name") %>%
+    left_join(rar, by = "name") %>%
+    dplyr::rename(tcga_barcode = name)
+}
+
+genus_alpha <- map(genus_df_list, alpha_getter)
+species_alpha <- map(species_df_list, alpha_getter)
+taxid_alpha <- map(taxid_df_list, alpha_getter)
+```
+
+#### High-level taxonomy
+```{r}
+
+
+```
+
+```{r}
+genus_analysis_list <- list("genus_counts" = tcga_counts$counts$genus,
+     "genus_dervars" = genus_dervars,
+     "clindat" = tcga_counts$clindat,
+     "imm_cor" = tcga_counts$imm_cor)
+saveRDS(genus_analysis_list, "data/genus_analysis_list.rds")
+```
+
+
+#### Beta diversity
+```{r}
+
+
+```

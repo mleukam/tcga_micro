@@ -8,4 +8,22 @@ editor_options:
   chunk_output_type: console
 ---
 
-Welcome to my research website.
+Analysis of TCGA and GTex data using Agamemnon
+
+## Data prep
+
+Read in data from Agememnon output. Supplement with clinical data from GDC and 
+immune correlates table provided by Nelly. Organize with listed nest structure
+and save for easy later access.
+
+* [Collect Tables](collect_tables.html) - get individual results from Agamemnon into a single table for eeach project. To be run on O2.
+* [TCGA Data Prep](tcga_data_prep.html) - change rownames to TCGA legacy barcodes. Add in clinical and immune correlate data. Save output in list structure. Each list contains one table for each TCGA project, all stored in the same order.
+* [Derive Variables](derive_vars.html) - calculate measures of diversity, richness, and other basic descriptive summary variables for later analysis
+
+## Immune correlates
+
+* [Calculate immune correlations for genus](genus_models.html)
+
+## Survival analysis
+
+

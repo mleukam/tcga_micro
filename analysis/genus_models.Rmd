@@ -1,0 +1,1053 @@
+---
+title: "Correlates and Models on Genus"
+author: "Michael Leukam"
+date: '2020-09-07'
+output:
+  workflowr::wflow_html: default
+editor_options:
+  chunk_output_type: console
+---
+
+## Setup
+
+Clear the workspace and set seed
+```{r}
+rm(list=ls())
+set.seed(818)
+```
+
+Load packages
+```{r}
+# data cleaning
+library(tidyverse)
+
+# correlations and modeling
+library(broom)
+library(caret)
+library(glmnet)
+
+# PCA
+library(factoextra)
+library(FactoMineR)
+
+# plotting packages
+library(survival)
+library(survminer)
+```
+
+Read in data
+Results of derive_vars.Rmd
+```{r}
+genus_analysis_list <- readRDS("data/genus_analysis_list.rds")
+
+# test variables
+imm_cor <- genus_analysis_list$imm_cor$STAD
+STAD_clindat <- genus_analysis_list$clindat$STAD
+genus_counts <- genus_analysis_list$genus_counts$STAD
+dervars <- genus_analysis_list$genus_dervars$STAD
+```
+
+## Diversity correlations
+
+#### Derived variables versus immune correlates
+```{r}
+# define starting variables
+dervars_list <- genus_analysis_list$genus_dervars
+imm_cor_list <- genus_analysis_list$imm_cor
+
+# for testing
+dervars_element <- genus_analysis_list$genus_dervars$STAD
+imm_cor_element <- genus_analysis_list$imm_cor$STAD
+
+# define function
+# returns a list of sublists. Each sublist contains immune correlates
+# and alpha diversity derived variables for a single tumor type
+imm_cor_mat_maker <- function(dervars_element, imm_cor_element){
+  imm_mat <- dervars_element %>% 
+    dplyr::left_join(imm_cor_element, by = "tcga_barcode") %>%
+    dplyr::filter(!is.na(shannon)) %>%
+    # select out dervars
+    dplyr::select(-shannon, 
+                -simpson, 
+                -invsimpson, 
+                -pielou_evenness, 
+                -rar_rich,
+                # select out text-based factors
+                -`TCGA Study`,
+                -`Immune Subtype`,
+                -`TCGA Subtype`,
+                # select out columns with too many NAs
+                -`TIL Regional Fraction`,
+                -`BCR Richness`,
+                -`BCR Shannon`,
+                -`BCR Evenness`,
+                -`Indel Neoantigens`,
+                -`SNV Neoantigens`) %>%
+    as.data.frame() %>%
+    column_to_rownames("tcga_barcode") 
+  dervar_mat <- dervars_element %>% 
+    dplyr::left_join(imm_cor_element, by = "tcga_barcode") %>%
+    # select in dervars
+    dplyr::select(tcga_barcode,
+                shannon, 
+                simpson, 
+                invsimpson, 
+                pielou_evenness, 
+                rar_rich) %>%
+    as.data.frame() %>%
+    column_to_rownames("tcga_barcode")
+  list("imm_cor" = imm_mat, "dervars" = dervar_mat)
+}
+
+# apply functon
+imm_cor_list <- map2(dervars_list, imm_cor_list, imm_cor_mat_maker)
+
+# check results
+str(imm_cor_list, max.level = 2)
+imm_cor_list[[1]][[1]][1:5, 1:5]
+imm_cor_list[[1]][[2]][1:5, 1:5]
+
+dervars_mats <- map(imm_cor_list, ~ .[["dervars"]])
+imm_cor_mats <- map(imm_cor_list, ~ .[["imm_cor"]])
+
+# how many NAs in each column?
+map(imm_cor_mats, function(imm_col){
+  map(as.data.frame(imm_col), ~ summary(as.factor(is.na(.))))
+})
+
+# get correlations
+correlator <- function(dervars_mat, imm_cor_mat){
+  shannon <- dervars_mat$shannon
+  simpson <- dervars_mat$simpson
+  invsimpson <- dervars_mat$invsimpson
+  pielou_evenness <- dervars_mat$pielou_evenenness
+  rar_rich <- dervars_mat$rar_rich
+  
+  shannon_cor <- map(imm_cor_mat, function(imm_cor_col){
+    cor.test(imm_cor_col, dervars_mat$shannon, 
+             method = "spearman", exact = FALSE) %>%
+      tidy()}) %>%
+    bind_rows() %>%
+    bind_cols(correlate = colnames(imm_cor_mat)) %>%
+    mutate(adj.p = p.adjust(p.value, method = "fdr")) %>%
+    dplyr::select(correlate, adj.p, p.value, everything()) %>%
+    arrange(p.value) %>%
+    dplyr::select(correlate, shannon_p.adj = adj.p, shannon_est = estimate)
+  simpson_cor <- map(imm_cor_mat, function(imm_cor_col){
+    cor.test(imm_cor_col, dervars_mat$simpson, 
+             method = "spearman", exact = FALSE) %>%
+      tidy()}) %>%
+    bind_rows() %>%
+    bind_cols(correlate = colnames(imm_cor_mat)) %>%
+    mutate(adj.p = p.adjust(p.value, method = "fdr")) %>%
+    dplyr::select(correlate, adj.p, p.value, everything()) %>%
+    arrange(p.value) %>%
+    dplyr::select(correlate, simpson_p.adj = adj.p, simpson_est = estimate)
+  invsimpson_cor <- map(imm_cor_mat, function(imm_cor_col){
+    cor.test(imm_cor_col, dervars_mat$invsimpson, 
+             method = "spearman", exact = FALSE) %>%
+      tidy()}) %>%
+    bind_rows() %>%
+    bind_cols(correlate = colnames(imm_cor_mat)) %>%
+    mutate(adj.p = p.adjust(p.value, method = "fdr")) %>%
+    dplyr::select(correlate, adj.p, p.value, everything()) %>%
+    arrange(p.value) %>%
+    dplyr::select(correlate, invsimp_p.adj = adj.p, invsimp_est = estimate)
+  pielou_cor <- map(imm_cor_mat, function(imm_cor_col){
+    cor.test(imm_cor_col, dervars_mat$pielou_evenness, 
+             method = "spearman", exact = FALSE) %>%
+      tidy()}) %>%
+    bind_rows() %>%
+    bind_cols(correlate = colnames(imm_cor_mat)) %>%
+    mutate(adj.p = p.adjust(p.value, method = "fdr")) %>%
+    dplyr::select(correlate, adj.p, p.value, everything()) %>%
+    arrange(p.value) %>%
+    dplyr::select(correlate, pielou_p.adj = adj.p, pielou_est = estimate)
+  rar_rich_cor <- map(imm_cor_mat, function(imm_cor_col){
+    cor.test(imm_cor_col, dervars_mat$rar_rich, 
+             method = "spearman", exact = FALSE) %>%
+      tidy()}) %>%
+    bind_rows() %>%
+    bind_cols(correlate = colnames(imm_cor_mat)) %>%
+    mutate(adj.p = p.adjust(p.value, method = "fdr")) %>%
+    dplyr::select(correlate, adj.p, p.value, everything()) %>%
+    arrange(p.value) %>%
+    dplyr::select(correlate, rarrich_p.adj = adj.p, rarrich_est = estimate)
+  shannon_cor %>%
+    left_join(simpson_cor, by = "correlate") %>%
+    left_join(invsimpson_cor, by = "correlate") %>%
+    left_join(pielou_cor, by = "correlate") %>%
+    left_join(rar_rich_cor, by = "correlate") %>%
+    arrange(shannon_p.adj)
+}
+  
+cor_list <- map2(dervars_mats, imm_cor_mats, correlator)
+
+cor_df <- enframe(cor_list) %>%
+  unnest(value) %>%
+  dplyr::rename(tcga_project = name) %>%
+  dplyr::arrange(simpson_p.adj) %>%
+  print()
+
+saveRDS(cor_list, "output/correlations_list.rds")
+saveRDS(cor_list, "output/correlations_tbl.rds")
+write_csv(cor_df, "output/correlations.csv")
+print(cor_df, n = 40)
+```
+
+#### Diversity Scatter Plots
+```{r}
+#make frame of shannon index values----------------------
+# scatterplots
+shannons <- map(dervars_mats, function(dervar){
+  dervar["shannon"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>%
+  enframe %>%
+  unnest(value) %>%
+  print()
+
+simpsons <- map(dervars_mats, function(dervar){
+  dervar["simpson"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>%
+  enframe %>%
+  unnest(value) %>%
+  print()
+
+invsimpsons <- map(dervars_mats, function(dervar){
+  dervar["invsimpson"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>%
+  enframe %>%
+  unnest(value) %>%
+  print()
+
+pielou <- map(dervars_mats, function(dervar){
+  dervar["pielou_evenness"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>%
+  enframe %>%
+  unnest(value) %>%
+  print()
+
+rar_rich <- map(dervars_mats, function(dervar){
+  dervar["rar_rich"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>%
+  enframe %>%
+  unnest(value) %>%
+  print()
+
+
+#CD8----------------------------------------------------
+cd8_shan <-map(imm_cor_mats, function(imm_cor){
+  imm_cor["T Cells CD8"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(tcells_cd8 = `T Cells CD8`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = tcells_cd8)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("CD8 T cells vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("CD8 T Cells") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.6)
+cd8_shan  
+
+cd8_simp <-map(imm_cor_mats, function(imm_cor){
+  imm_cor["T Cells CD8"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(simpsons) %>%
+  dplyr::rename(tcells_cd8 = `T Cells CD8`, tcga_project = name) %>%
+  ggplot(aes(x = simpson, y = tcells_cd8)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("CD8 T cells vs Simpson diversity index") +
+    xlab("Simpson Diversity Index") +
+    ylab("CD8 T Cells") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.6)
+cd8_simp
+
+cd8_rar <-map(imm_cor_mats, function(imm_cor){
+  imm_cor["T Cells CD8"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(rar_rich) %>%
+  dplyr::rename(tcells_cd8 = `T Cells CD8`, tcga_project = name) %>%
+  ggplot(aes(x = rar_rich, y = tcells_cd8)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("CD8 T cells vs rarefied richness") +
+    xlab("Rarefied richness") +
+    ylab("CD8 T Cells") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.6)
+cd8_rar
+
+cd8_pie <-map(imm_cor_mats, function(imm_cor){
+  imm_cor["T Cells CD8"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(pielou) %>%
+  dplyr::rename(tcells_cd8 = `T Cells CD8`, tcga_project = name) %>%
+  ggplot(aes(x = pielou_evenness, y = tcells_cd8)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("CD8 T cells vs Pielou evenness") +
+    xlab("Pielou evenness") +
+    ylab("CD8 T Cells") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.6)
+cd8_pie
+
+cd8_inv <-map(imm_cor_mats, function(imm_cor){
+  imm_cor["T Cells CD8"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(invsimpsons) %>%
+  dplyr::rename(tcells_cd8 = `T Cells CD8`, tcga_project = name) %>%
+  ggplot(aes(x = invsimpson, y = tcells_cd8)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("CD8 T cells vs inverted Simpson's diversity index") +
+    xlab("Inverted Simpson diversity index") +
+    ylab("CD8 T Cells") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.6)
+cd8_inv
+
+cd8_shan_facet <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["T Cells CD8"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(tcells_cd8 = `T Cells CD8`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = tcells_cd8, color = tcga_project)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    facet_wrap(facets = "tcga_project") +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("CD8 T cells vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("CD8 T Cells") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.3)
+cd8_shan_facet
+
+#MAC1----------------------------------------------------
+mac1_shan <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["Macrophages M1"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(mac1 = `Macrophages M1`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = mac1)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("M1 Macrophages vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("M1 Macrophages") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.3)
+mac1_shan
+
+mac1_shan_facet <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["Macrophages M1"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(mac1 = `Macrophages M1`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = mac1, color = tcga_project)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    facet_wrap(facets = "tcga_project") +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("M1 Macrophages vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("M1 Macrophages") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.3)
+mac1_shan_facet
+
+#MAC2----------------------------------------------------
+mac2_shan <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["Macrophages M2"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(mac2 = `Macrophages M2`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = mac2)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("M2 Macrophages vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("M2 Macrophages") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.8)
+mac2_shan
+
+mac2_shan_facet <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["Macrophages M2"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(mac2 = `Macrophages M2`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = mac2, color = tcga_project)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    facet_wrap(facets = "tcga_project") +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("M2 Macrophages vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("M2 Macrophages") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.65)
+mac2_shan_facet
+
+#NK----------------------------------------------------
+nk_shan <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["NK Cells Activated"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(nk = `NK Cells Activated`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = nk, color = tcga_project)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    facet_wrap(facets = "tcga_project") +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("NK Cells vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("NK Cells") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 0.17)
+nk_shan
+
+#OS----------------------------------------------------
+os_shan <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["OS Time"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(nk = `OS Time`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = nk)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("OS Days vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("OS Time") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 7400)
+os_shan
+
+os_shan_facet <- map(imm_cor_mats, function(imm_cor){
+  imm_cor["OS Time"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  left_join(shannons) %>%
+  dplyr::rename(nk = `OS Time`, tcga_project = name) %>%
+  ggplot(aes(x = shannon, y = nk, color = tcga_project)) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    facet_wrap(facets = "tcga_project") +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ggtitle("OS Days vs Shannon diversity index") +
+    xlab("Shannon Diversity Index") +
+    ylab("OS Time") +
+    stat_cor(method = "spearman", cor.coef.name = "rho", label.y = 7400)
+os_shan_facet
+```
+
+## Immune Correlates 
+
+```{r}
+# ------------------------------------------
+
+# Make dataframes of genus counts
+counts_df_list <- genus_analysis_list$genus_counts %>%
+  map(
+    function(df){df %>% 
+      dplyr::group_by(tcga_barcode) %>%
+    summarise_all(sum) %>%
+    as.data.frame() %>%
+    column_to_rownames(var = "tcga_barcode")
+  }
+) %>%
+  # many missing values in OV, remove for now
+  purrr::list_modify("OV" = NULL)
+
+# get vectors of included samples
+counts_df_samples <- map(counts_df_list, ~ rownames(.))
+
+# ------------------------------------------
+
+# Make dataframes of immune correlate variables
+imcor_list <- genus_analysis_list$imm_cor %>%
+  # many missing values in OV, remove for now
+  purrr::list_modify("OV" = NULL)
+
+# test variable
+imcor_tbl <- imcor_list$STAD 
+
+imcor_vars <- function(imcor_tbl, counts_df_names){
+  # remove categorical variables unsuitable for correlation
+  imcor_tbl %>%
+    dplyr::select(-`TCGA Study`, -`Immune Subtype`, -`TCGA Subtype`, 
+                  -`SNV Neoantigens`, -`Indel Neoantigens`, 
+                  -`OS`, -`OS Time`, -`PFI`, -`PFI Time`) %>%
+    # remove columns that have too many NAs for correlation
+    dplyr::select(-`BCR Evenness`, -`BCR Shannon`, -`BCR Richness`,
+                  -`Stromal Fraction`, -`Intratumor Heterogeneity`,
+                  -`TIL Regional Fraction`) %>%
+    # keep only rows that have genus counts
+    dplyr::filter(tcga_barcode %in% counts_df_names) %>%
+    as.data.frame() %>%
+    column_to_rownames(var = "tcga_barcode")
+}
+
+imcor_vars_list <- map2(imcor_list, counts_df_samples, imcor_vars)
+
+# get vectors of included samples
+imcors_df_names <- map(imcor_vars_list, ~ rownames(.))
+
+# ------------------------------------------
+
+# trim counts to match immune correlates
+# make sure the order matches
+counts_tbl_list <- counts_df_list %>%
+  map(function(df){
+    df %>%
+      rownames_to_column(var = "tcga_barcode") %>%
+      as_tibble()
+  }
+  )
+counts_trim <- map2(counts_tbl_list, imcors_df_names, function(counts_tbl, imcors_df_names){
+    imcors_names_tbl <- enframe(imcors_df_names) %>%
+      dplyr::select(tcga_barcode = value)
+    imcors_names_tbl %>% 
+      left_join(counts_tbl) %>%
+      as.data.frame() %>%
+      column_to_rownames(var = "tcga_barcode")
+  }
+  )
+
+# ------------------------------------------
+
+# function for correlations
+# takes two arguments: counts and immune variables
+# must be the same length and order, and have a limited # NAs
+imcorrelator <- function(counts_df, imcor_vars){
+  counts_cols_list <- as.list(counts_df)
+  map(counts_cols_list, function(counts_col){
+    map(imcor_vars, function(imcor_var){
+      cor.test(imcor_var, counts_col, 
+             method = "spearman", exact = FALSE) %>%
+      tidy()}) %>%
+    bind_rows() %>%
+    bind_cols(genus = colnames(imcor_vars)) %>%
+    mutate(adj.p = p.adjust(p.value, method = "fdr")) %>%
+    dplyr::select(genus, adj.p, p.value, everything()) %>%
+    arrange(p.value)
+  }
+  )
+}
+
+imcors_list <- map2(imcor_vars_list, counts_trim, imcorrelator)
+saveRDS(imcors_list, "output/imm_correlations_by_genus.rds")
+
+# convert to flat dataframe
+imcors_flat <- imcors_list %>% 
+  as_tibble() %>% 
+  pivot_longer(cols = colnames(.)) %>% 
+  mutate(immune_correlate = names(value)) %>%
+  unnest(value) %>%
+  dplyr::select(tcga_project = name, genus, immune_correlate, everything()) %>%
+  arrange(adj.p) %>%
+  print()
+
+# save for later use
+write_csv(imcors_flat, "output/imcors_by_genus_table.csv")
+```
+
+#### Scatterplots for immune correlates  
+```{r}
+# get immune correlate with sample name
+# input is list by tcga project
+# output is single flat table with tcga_project as a column
+tcr_richness <- map(imcor_vars_list, function(imm_cor){
+  imm_cor["TCR Richness"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  dplyr::rename(tcga_project = name) %>%
+  print()
+
+# use trimmed counts that correspond to cases with immune data
+# trimmed for correlation analysis above
+# input is list by tcga project
+# output is single flat table with tcga_project as a column
+enterocloster <- map(counts_trim, function(counts){
+  counts["Enterocloster"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  dplyr::rename(tcga_project = name) %>%
+  print()
+
+tcr_richness_vs_enterocloster <- tcr_richness %>%
+  left_join(enterocloster) %>%
+  dplyr::filter(!is.na(`TCR Richness`)) %>%
+  dplyr::filter(!is.na(Enterocloster)) %>%
+  dplyr::rename(tcr_richness = `TCR Richness`) %>%
+  ggplot(aes(
+      y = tcr_richness,
+      x = Enterocloster)
+    ) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    stat_cor(method = "spearman",
+             cor.coef.name = "rho",
+             label.y = 1000) +
+    theme_classic2() +
+    theme(legend.position = "none") +
+    ylim(c(-1, 1050))
+  
+tcr_richness_vs_enterocloster
+
+tcr_richness_vs_enterocloster_facet <- tcr_richness %>%
+  left_join(enterocloster) %>%
+  dplyr::filter(!is.na(`TCR Richness`)) %>%
+  dplyr::filter(!is.na(Enterocloster)) %>%
+  dplyr::rename(tcr_richness = `TCR Richness`) %>%
+  ggplot(aes(
+      y = tcr_richness,
+      x = Enterocloster,
+      color = tcga_project)
+    ) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    stat_cor(method = "spearman",
+             cor.coef.name = "rho",
+             label.y = 1000) +
+    facet_wrap(facets = "tcga_project") +
+    theme_classic2() +
+    theme(legend.position = "none")
+  
+tcr_richness_vs_enterocloster_facet
+
+#-----------------------------------------
+tgf_beta <- map(imcor_vars_list, function(imm_cor){
+  imm_cor["TGF-beta Response"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  dplyr::rename(tcga_project = name) %>%
+  print()
+
+# use trimmed counts that correspond to cases with immune data
+# trimmed for correlation analysis above
+# input is list by tcga project
+# output is single flat table with tcga_project as a column
+orthopoxvirus <- map(counts_trim, function(counts){
+  counts["Orthopoxvirus"] %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+}) %>% 
+  enframe() %>%
+  unnest(value) %>%
+  dplyr::rename(tcga_project = name) %>%
+  print()
+
+# plot "pancancer" scatter plot
+tgf_beta_vs_orthopoxvirus <- tgf_beta %>%
+  left_join(orthopoxvirus) %>%
+  dplyr::filter(!is.na(`TGF-beta Response`)) %>%
+  dplyr::filter(!is.na(Orthopoxvirus)) %>%
+  ggplot(aes(
+      y = `TGF-beta Response`,
+      x = Orthopoxvirus)
+    ) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    stat_cor(method = "spearman",
+             cor.coef.name = "rho",
+             label.y = 1.5) +
+    theme_classic2() +
+    theme(legend.position = "none")
+  
+tgf_beta_vs_orthopoxvirus
+
+# scatterplot facet by tumor type
+tgf_beta_vs_orthopoxvirus <- tgf_beta %>%
+  left_join(orthopoxvirus) %>%
+  dplyr::filter(!is.na(`TGF-beta Response`)) %>%
+  dplyr::filter(!is.na(Orthopoxvirus)) %>%
+  ggplot(aes(
+      y = `TGF-beta Response`,
+      x = Orthopoxvirus,
+      color = tcga_project)
+    ) +
+    geom_point(alpha = 0.2) +
+    geom_smooth() +
+    stat_cor(method = "spearman",
+             cor.coef.name = "rho",
+             label.y = 1.5) +
+    facet_wrap(facets = "tcga_project") +
+    theme_classic2() +
+    theme(legend.position = "none")
+  
+tgf_beta_vs_orthopoxvirus
+```
+
+## PCA plots
+```{r}
+genus_for_pca <- counts_tbl_list %>%
+  reduce(bind_rows) %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode")
+
+set.seed(818)
+
+genus_pca <- PCA(genus_for_pca, scale.unit = TRUE,  ncp = 10, graph = FALSE)
+fviz_pca_var(genus_pca, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             label = FALSE
+             )
+# Contributions of variables to PC1
+fviz_contrib(genus_pca, choice = "var", axes = 1, top = 10)
+# Contributions of variables to PC2
+fviz_contrib(genus_pca, choice = "var", axes = 2, top = 10)
+
+# labeled PCA
+fviz_pca_ind(genus_pca)
+```
+
+Remove outliers
+```{r}
+genus_pca$ind$coord %>% as.data.frame %>% rownames_to_column(var = "tcga_barcode") %>% as_tibble() %>% arrange(Dim.2)
+
+genus_pca$ind$coord %>% as.data.frame %>% rownames_to_column(var = "tcga_barcode") %>% as_tibble() %>% arrange(desc(Dim.2))
+
+counts_filt <- counts_tbl_list %>%
+  reduce(bind_rows) %>%
+  dplyr::filter(!tcga_barcode %in% c("TCGA-B0-5702", "TCGA-VQ-A8P5", "TCGA-A7-A13E")) %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode") 
+
+dim(counts_filt)
+dim(genus_for_pca)
+
+genus_pca_filt <- PCA(counts_filt, scale.unit = TRUE, ncp = 10, graph = FALSE)
+fviz_pca_ind(genus_pca_filt)
+fviz_pca_var(genus_pca_filt, col.var = "cos2",
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
+             label = FALSE
+             )
+```
+
+
+```    
+    
+  left_join(genus_tbl) %>%
+  dplyr::select(-c(os_status, os_days)) %>%
+  # convert to data.frame
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode") %>%
+  print()
+
+surv_genus[1:5, 1:5]
+
+# partition the data
+set.seed(818)
+genus_train_samples <- twoyr_os_surv_genus$twoyr_os_status %>%
+  createDataPartition(p = 0.8, list = FALSE) 
+genus_train <- surv_genus[genus_train_samples, ]
+genus_test <- surv_genus[-genus_train_samples, ]
+
+# define predictor variables
+x <- model.matrix(twoyr_os_status~., genus_train)[,-1]
+# Outcome variable
+y <- genus_train$twoyr_os_status
+
+# are the data unbalanced? How well will guessing "alive" for everyone work
+# create baseline model - how well will a model that always guesses "normal" do?
+table(genus_train$twoyr_os_status)
+204/(204 + 96)
+# with no additional information, guessing "alive" will be right 68% of the time
+
+# find the best AUC using cross-validation
+# alpha = 1 for lasso 
+cv_lasso <- cv.glmnet(x, y, 
+                      alpha = 1, 
+                      family = "binomial", 
+                      type.measure = "auc")
+plot(cv_lasso)
+
+# lowest lambda minimizes prediction error
+cv_lasso$lambda.min
+# the purpose of regularization is to balance accuracy and simplicity or a model with the smallest number of predictors that also gives a good accuracy. cv.glmnet() finds the value of lambda that gives the simplest model that lies within one standard error of the optimal value of lambda: lambda.1se
+cv_lasso$lambda.1se
+
+# coefficients for lambda min
+coef(cv_lasso, cv_lasso$lambda.min)
+# coefficients for lambda 1se
+coef(cv_lasso, cv_lasso$lambda.1se)
+
+# final model with lambda.min
+cv_final_model <- glmnet(x, y, alpha = 1, family = "binomial",
+                      lambda = cv_lasso$lambda.min)
+
+# make predictions on the test data
+x_test <- model.matrix(twoyr_os_status~., genus_test)[,-1]
+predictions <- cv_final_model %>% 
+  predict(x_test) %>% 
+  as.vector()
+
+# make predictions on test data
+x_test <- model.matrix(twoyr_os_status~., genus_test)[,-1]
+probabilities <- cv_final_model %>% predict(newx = x_test)
+predicted_classes <- ifelse(probabilities > 0.5, 1, 0)
+# model accuracy
+observed_classes <- genus_test$twoyr_os_status
+mean(predicted_classes == observed_classes)
+# model performance metrics
+predictions <- cv_final_model %>% 
+  predict(x_test) %>% 
+  as.vector()
+data.frame(
+  RMSE = RMSE(predictions, genus_test$twoyr_os_status),
+  Rsquare = R2(predictions, genus_test$twoyr_os_status)
+)
+# get AUC
+max(cv_lasso$cvm)
+
+# get most influential variables (top 10)
+twoyr_varimp <- varImp(cv_final_model, 
+                     lambda = cv_lasso$lambda.min, 
+                     scale = FALSE) %>%
+  rownames_to_column(var = "rowname") %>%
+  arrange(desc(Overall)) %>%
+  mutate(rowname = fct_reorder(rowname, Overall)) %>%
+  slice(1:10)
+
+twoyr_varimp
+
+twoyr_varimp_plot <- ggplot(data = twoyr_varimp, aes(x = rowname, y = Overall)) +
+  geom_segment(aes(x = rowname, 
+                   xend = rowname, y = 0, 
+                   yend = Overall), color="gray") +
+  geom_point(color="dark red", size=4) +
+  labs(title = "Genus predictors of two-year survival") +
+  xlab("") +
+  ylab("Importance") +
+  theme_classic() +
+  coord_flip() +
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  ) 
+twoyr_varimp_plot
+```
+
+
+## Clinical Outcomes
+
+#### Clinical and immune variables modeled on genera
+
+```{r}
+# testing variable
+clindat <- STAD_clindat
+
+# make list of clinical data
+clindat_list <- genus_analysis_list$clindat
+
+# ovarian cancer clinical data uses figo instead of AJCC staging
+# infer nodal and metastatic status from figo staging
+clindat_ov <- clindat_list[["OV"]] %>%
+  mutate(ajcc_pathologic_t = rep(NA, nrow(.))) %>%
+  mutate(ajcc_pathologic_n = ifelse(
+    figo_stage %in% c("Stage IIIA", "Stage IIIB", "Stage IIIC", "Stage IVA", "Stage IVB"),
+    1, 
+    ifelse(is.na(figo_stage), NA, 0))) %>% 
+  mutate(ajcc_pathologic_m = ifelse(
+    figo_stage %in% c("Stage IVA", "Stage IVB"),
+    1,
+    ifelse(is.na(figo_stage), NA, 0))) %>%
+  dplyr::select(figo_stage, ajcc_pathologic_t, ajcc_pathologic_n, ajcc_pathologic_m, everything()) 
+
+# add repaired dataframe back to list
+clindat_list[["OV"]] <- clindat_ov
+  
+# function to make dataframe for clinical data
+# all outcomes defined as binary (0/1) outcome
+outcomes_cleaner <- function(clindat){
+  # examine only primary tumors
+  clindat_prime <- clindat %>%
+    dplyr::filter(sample_type == "Primary Tumor")
+  # define binary survival outcome variables
+  surv_cols <- clindat_prime %>% 
+    # examine only primary tumors
+    dplyr::filter(sample_type == "Primary Tumor") %>%
+    dplyr::select(tcga_barcode, days_to_death, days_to_last_follow_up) %>%
+    mutate(
+      os_status = ifelse(is.na(days_to_death), 0, 1)
+      ) %>%
+    mutate(
+      os_days = ifelse(os_status == 1, days_to_death, days_to_last_follow_up)
+      ) %>%
+    dplyr::select(tcga_barcode, os_status, os_days) %>%
+    mutate(
+      twoyr_os_status = ifelse(os_status == 0, 0,
+                              ifelse(os_days > 730, 0, 1))
+      ) %>%
+    mutate(
+      fiveyr_os_status = ifelse(os_status == 0, 0,
+                               ifelse(os_days > 1826, 0, 1))
+      ) %>%
+    dplyr::select(tcga_barcode, 
+                  twoyr_os_status, 
+                  fiveyr_os_status)
+  # binary demographics variables
+  demo_cols <- clindat_prime %>%
+    dplyr::select(tcga_barcode, gender, age_at_index, race) %>%
+    mutate(
+      female_sex = ifelse(gender == "female", 1,
+                          ifelse(is.na(gender), NA, 1))
+      ) %>%
+    mutate(
+      older_adult = ifelse(age_at_index > 65, 1,
+                           ifelse(is.na(age_at_index), NA, 1))
+      ) %>%
+    mutate(
+      nonwhite_race = ifelse(race == "white", 0, 
+                            ifelse(is.na(race), NA, 1))
+      ) %>%
+    dplyr::select(tcga_barcode, female_sex, older_adult, nonwhite_race) 
+  # binary tumor variables
+  tumor_cols <- clindat_prime %>%
+    dplyr::select(tcga_barcode, 
+                  tumor_stage, 
+                  ajcc_pathologic_t,
+                  ajcc_pathologic_m,
+                  ajcc_pathologic_n) %>%
+    mutate(
+      stage_iv = ifelse(grepl("iv", tumor_stage), 1,
+                          ifelse(tumor_stage == "not reported", NA, 
+                                        ifelse(is.na(tumor_stage), NA, 1)))
+           ) %>%
+    mutate(
+      t4 = ifelse(grepl("4", ajcc_pathologic_t), 1,
+                          ifelse(ajcc_pathologic_t == "TX", NA,
+                                        ifelse(is.na(ajcc_pathologic_t), NA, 1)))
+    ) %>%
+    mutate(
+      metastatic = ifelse(ajcc_pathologic_m == "M1", 1, 
+                          ifelse(ajcc_pathologic_m == "MX", NA,
+                                        ifelse(is.na(ajcc_pathologic_m), NA, 1)))
+    ) %>%
+    mutate(
+      nodal_involvement = ifelse(ajcc_pathologic_n == "N0", 0,
+                                 ifelse(ajcc_pathologic_n == "NX", NA, 
+                                        ifelse(is.na(ajcc_pathologic_n), NA, 1)))
+    ) %>%
+    dplyr::select(tcga_barcode, stage_iv, t4, metastatic, nodal_involvement)
+  surv_cols %>%
+    left_join(demo_cols) %>%
+    left_join(tumor_cols)
+}
+  
+outcomes_data <- map(clindat_list, outcomes_cleaner)
+  
+```
+
+Interesting nonbinary clinical variables:
+* primary_diagnosis
+* tissue_or_organ_of_origin
+* site_of_resection_or_surgery

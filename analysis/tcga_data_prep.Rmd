@@ -1,0 +1,175 @@
+---
+title: "tcga_data_prep"
+author: "Michael Leukam"
+date: "2020-09-12"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Setup
+
+Clear the workspace and set seed
+```{r}
+rm(list=ls())
+set.seed(818)
+```
+
+Setup on local
+```{bash, eval = FALSE}
+sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mjl62 ~/sshfs_mount/scratch
+```
+
+Load packages
+```{r}
+# data cleaning
+library(tidyverse)
+```
+
+#### Read data and format
+```{r}
+# READ IN--------------------------------------------
+# make list of TCGA projects
+tcga_proj <- list("STAD" = "STAD",
+                  "LUAD" = "LUAD",
+                  "BRCA" = "BRCA",
+                  "OV" = "OV",
+                  "ESCA" = "ESCA",
+                  "KIRK" = "KIRC",
+                  "HNSC" = "HNSC")
+
+# function to read in data for each project
+file_loader <- function(tcga_proj){
+  # assign path to data files
+  path_to_directory <- "~/sshfs_mount/scratch/agamemnon_counts/"
+  # read in genus counts
+  genus_counts <- read_csv(
+  paste0(path_to_directory,
+         tcga_proj, "_genus_counts.csv")
+  )
+   # read in species counts
+  species_counts <- read_csv(
+  paste0(path_to_directory, 
+         tcga_proj, "_species_counts.csv")
+  )
+   # read in taxid counts
+  taxid_counts <- read_csv(
+    paste0(path_to_directory,
+           tcga_proj, "_taxID_counts.csv")
+  )
+  # read in clinical data
+  clindat <- read_csv(
+    paste0(path_to_directory, 
+           tcga_proj, "_clindata.csv")
+  ) %>%
+    # keep only primary tumor data
+    dplyr::filter(sample_type == "Primary Tumor") %>%
+    # convert explicit attributes table to standard tbl
+    # honestly because it is annoying for str() calls
+    # and does not look pretty
+    select(everything())
+  # make counts tables into a list for batch processing
+  counts <- list(genus_counts, species_counts, taxid_counts)
+  names(counts) <- c("genus", "species", "taxid")
+  # return a list of counts (nested) and clinical data
+  combined_list <- list("counts" = counts, "clindat" = clindat)
+  combined_list
+}
+# apply function to list
+counts_clin_list <- purrr::map(tcga_proj, file_loader)
+
+# FIX ROWNAMES--------------------------------------------
+# function to convert file_ids to legacy TCGA barcodes
+# using conversion columns in clindata
+convert_to_barcodes <- function(list_as_element){
+  clindat <- list_as_element[["clindat"]]
+  imm_cor <- list_as_element[["imm_cor"]]
+  
+  lookup_table <- clindat %>% dplyr::select(file_id, tcga_barcode, sample_type)
+  counts_tables <- list_as_element[["counts"]]
+  counts_barcodes <- map(counts_tables, function(df){
+    mat <- df[-1] %>%
+      as.matrix()
+    rownames(mat) <- df %>% dplyr::pull(var = 1)
+    mat %>%
+      t() %>%
+      as.data.frame() %>%
+      tibble::rownames_to_column(var = "file_id") %>%
+      tibble::as_tibble() %>%
+      dplyr::left_join(lookup_table) %>%
+      dplyr::select(file_id, tcga_barcode, sample_type, everything()) %>%
+      # select only primary tumors for now
+      dplyr::filter(sample_type == "Primary Tumor") %>%
+      dplyr::select(-file_id, -sample_type)
+  })
+  list("genus" = counts_barcodes[["genus"]], 
+       "species" = counts_barcodes[["species"]],
+       "taxid" = counts_barcodes[["taxid"]],
+       "clindat" = clindat)
+}
+# apply function to list
+tcga_barcodes_list <- purrr::map(counts_clin_list, convert_to_barcodes)
+tcga_barcodes_list
+
+# IMMUNE CORRELATES--------------------------------------------
+# read in
+path_to_directory <- "~/sshfs_mount/scratch/agamemnon_counts/"
+imm_corr <- read_tsv(
+  paste0(path_to_directory, "IMM_correlates.tsv")
+  ) %>% 
+  dplyr::select(tcga_barcode = `TCGA Participant Barcode`, everything())
+
+# make immune correlates list
+imm_corr_lister <- function(tcga_proj){
+  imm_corr %>% dplyr::filter(`TCGA Study` == tcga_proj)
+}
+imm_corr_list <- purrr::map(tcga_proj, imm_corr_lister)
+
+# LISTS BY TYPE--------------------------------------------
+# functions to split lists by count types
+genera_lister <- function(list_element){
+  genera <- list_element[["genus"]]
+genera
+}
+species_lister <- function(list_element){
+  genera <- list_element[["species"]]
+  genera
+}
+taxid_lister <- function(list_element){
+  genera <- list_element[["taxid"]]
+  genera
+}
+# apply functions to list
+genera_list <- purrr::map(tcga_barcodes_list, genera_lister)
+species_list <- purrr::map(tcga_barcodes_list, species_lister)
+taxid_list <- purrr::map(tcga_barcodes_list, taxid_lister)
+
+# create nested list of counts
+counts_sublist <- list("genus" = genera_list,
+                       "species" = species_list, 
+                       "taxid" = taxid_list)
+
+# add in clinical data and immune correlates
+clindat_lister <- function(list_element){
+  clindat <- list_element[["clindat"]]
+  clindat
+}
+clindat_list <- purrr::map(tcga_barcodes_list, clindat_lister)
+
+tcga_counts <- list("counts" = counts_sublist,
+                    "clindat" = clindat_list,
+                    "imm_cor" = imm_corr_list)
+
+# SAVE FOR LATER USE---------------------------------------
+saveRDS(tcga_counts, "data/tcga_counts_list.rds")
+
+```
+
+Check integrity 
+```{r}
+tcga_counts <- readRDS("data/tcga_counts_list.rds")
+str(tcga_counts$counts, max.level = 2)
+str(tcga_counts, max.level = 2)
+tcga_counts$counts$genus$STAD
+tcga_counts$counts$species$STAD
+```

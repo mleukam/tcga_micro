@@ -1,0 +1,243 @@
+---
+title: "Collect Results from Agamemnon"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+## Setup
+
+Clear workspace
+On O2 cluster
+```{r}
+rm(list=ls())
+```
+
+Setup on O2 cluster
+```{bash, eval=FALSE, include=TRUE}
+srun --pty -p interactive --mem 64G -t 0-06:00 /bin/bash
+module load gcc/6.2.0
+module load R/4.0.1
+cd /n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/
+R
+```
+
+## Define function
+```{r}
+input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC"
+output_dir <- "/n/scratch3/users/m/mjl62/agamemnon_counts"
+tcga_project <- "HNSC"
+
+gather_counts <- function(input_dir, output_dir, tcga_project){
+  #
+  # function to gather all agamemnon output files
+  # path to directories as a quoted string as dir arguments
+  # ok if nested in subdirectories
+  # 4-letter TCGA project as project argument
+  # before starting, ensure no duplicate file_ids
+  # output is three new CSVs:
+  #   counts table
+  #   clinical data
+  #   taxonomy key
+  #
+  # load required packages
+  library(tidyverse)
+  library(GenomicDataCommons)
+  library(Matrix.utils)
+  # get dataframe of paths to results.tab files with file uuids
+  paths_df <- dir(path = input_dir, 
+           recursive = TRUE, 
+           include.dirs = FALSE, 
+           full.names = TRUE) %>%
+    enframe() %>%
+    dplyr::filter(grepl("results.tab", value)) %>%
+    separate(value, into = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, "file_id"),
+             sep = "/", remove = FALSE) %>%
+    dplyr::select(pathto = value, file_id)
+  # get clinical data from file uuids
+  # requires GenomicDataCommons
+  file_uuids_vector <- paths_df %>%
+    pull(file_id)
+  conversion_table <- files(legacy = FALSE) %>%
+    GenomicDataCommons::filter( ~ file_id %in% file_uuids_vector) %>%
+    GenomicDataCommons::select(c("cases.case_id","cases.samples.submitter_id")) %>%
+    results_all() %>%
+    as_tibble() %>%
+    unnest(cases) %>%
+    unnest(samples) %>%
+    dplyr::select(submitter_id, file_id, case_id) %>%
+    separate(submitter_id, into = c("x1", "x2", "x3", NA), sep = "-") %>%
+    unite(tcga_barcode, "x1", "x2", "x3", sep = "-")
+  clin_data <- conversion_table %>%
+    pull(case_id) %>%
+    gdc_clinical() %>%
+    reduce(left_join, by = "case_id")
+  # get sample type out of GDC
+  sample_type <- files(legacy = FALSE) %>%
+    GenomicDataCommons::filter( ~ file_id %in% file_uuids_vector) %>%
+    GenomicDataCommons::select("cases.samples.sample_type") %>%
+    results_all() %>%
+    as_tibble() %>%
+    unnest(cases) %>%
+    unnest(samples)
+  clin_df <- list(conversion_table, clin_data) %>%
+    reduce(left_join, by = "case_id") %>%
+    left_join(sample_type, by = "file_id") %>%
+    dplyr::select(file_id, 
+                  tcga_barcode, 
+                  case_id, 
+                  sample_type, 
+                  everything())
+  # make lookup data for colnames
+  barcode_lookuptable <- clin_df %>%
+    dplyr::select(tcga_barcode, file_id, case_id)
+  #
+  #
+  # read tsvs to a list of tibbles
+  paths_list <- paths_df %>%
+    pull(pathto) %>%
+    as.list()
+  names(paths_list) <- paths_df$file_id
+  tsv_list <- map(paths_list, read_tsv)
+  # pull off taxonomy labels and set aside
+  taxonomy <- tsv_list[[1]] %>%
+    dplyr::select(Superkingdom, 
+                  Phylum, 
+                  Class, 
+                  Order, 
+                  Family, 
+                  Genus, 
+                  Species, 
+                  Scientific_Name, 
+                  TaxID) %>%
+    mutate(TaxID = as.character(TaxID))
+  # get matrix of counts with file_id as colnames
+  tsv_mat <- tsv_list %>%
+    map(function(df){df %>% pull(NumCounts)}) %>%
+    bind_cols() %>%
+    as.matrix()
+  rownames(tsv_mat) <- taxonomy$TaxID
+  #
+  # aggregate by rownames using Matrix.utils
+  # add column for TCGA barcodes
+  # add column for sample_type
+  taxid_counts_tbl <- aggregate.Matrix(tsv_mat, row.names(tsv_mat)) %>%
+    as.matrix() %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "TaxID") %>%
+    as_tibble()
+  # counts by species
+  species_counts_intermed <- taxid_counts_tbl %>%
+    left_join(taxonomy, by = "TaxID") %>%
+    dplyr::select(Species, everything()) %>%
+    dplyr::select(-Superkingdom, 
+                  -Phylum, 
+                  -Class,
+                  -Order, 
+                  -Family,
+                  -Genus,
+                  -Scientific_Name,
+                  -TaxID)
+  species_counts_mat <- species_counts_intermed %>%
+    dplyr::select(-Species) %>%
+    as.matrix()
+  rownames(species_counts_mat) <- species_counts_intermed %>%
+    pull(Species)
+  species_counts_tbl <- aggregate.Matrix(species_counts_mat, row.names(species_counts_mat)) %>%
+    as.matrix() %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "Species") %>%
+    as_tibble()
+  # counts by genus
+  genus_counts_intermed <- taxid_counts_tbl %>%
+    left_join(taxonomy, by = "TaxID") %>%
+    dplyr::select(Species, everything()) %>%
+    dplyr::select(-Superkingdom, 
+                  -Phylum, 
+                  -Class,
+                  -Order, 
+                  -Family,
+                  -Species,
+                  -Scientific_Name,
+                  -TaxID)
+  genus_counts_mat <- genus_counts_intermed %>%
+    dplyr::select(-Genus) %>%
+    as.matrix()
+  rownames(genus_counts_mat) <- genus_counts_intermed %>%
+    pull(Genus)
+  genus_counts_tbl <- aggregate.Matrix(genus_counts_mat, row.names(genus_counts_mat)) %>%
+    as.matrix() %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "Genus") %>%
+    as_tibble()
+  #
+  #
+  # write taxID counts out as CSV
+  write_csv(taxid_counts_tbl, 
+            paste0(output_dir, 
+                   "/", 
+                   tcga_project, 
+                   "_taxID_counts.csv"))
+  # write Species counts out as CSV
+  write_csv(species_counts_tbl, 
+            paste0(output_dir, 
+                   "/", 
+                   tcga_project, 
+                   "_species_counts.csv"))
+  # write Genus counts out as CSV
+  write_csv(genus_counts_tbl, 
+            paste0(output_dir, 
+                   "/", 
+                   tcga_project, 
+                   "_genus_counts.csv"))
+  # write clinical data out as CSV
+  write_csv(clin_df,  
+            paste0(output_dir, 
+                   "/", 
+                   tcga_project, 
+                   "_clindata.csv"))
+}
+```
+
+## Apply function
+BRCA, ESCA, HNSC, KIRC, LUAD, OV, and STAD
+On O2 (interactive)
+```{r, eval=FALSE, include=TRUE}
+# Head and neck SCC
+gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC",
+              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
+              tcga_project = "HNSC")
+
+# Kidney Renal Clear Cell Carcinoma
+gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_KIRC",
+              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
+              tcga_project = "KIRC")
+
+# Esophageal cancer
+gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_ESCA",
+              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
+              tcga_project = "ESCA")
+
+# Breast cancer
+gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_BRCA",
+              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
+              tcga_project = "BRCA")
+
+# Ovarian cancer
+gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_OV",
+              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
+              tcga_project = "OV")
+
+# Lung cancer
+gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_LUAD",
+              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
+              tcga_project = "LUAD")
+
+# Stomach cancer
+gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_STAD",
+              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
+              tcga_project = "STAD")
+```
