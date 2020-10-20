@@ -37,9 +37,6 @@ genus_tbl <- tcga_counts$counts$genus$STAD %>%
 sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/ ~/sshfs_mount/TCGA
 
 cd ~/sshfs_mount/TCGA/TCGA_STAD/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/Analysis/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/taxonomic_ranks
-
-results_tab <- read_tsv("results.tab")
-
 ```
 
 ```{r}
@@ -47,8 +44,6 @@ tax_ranks_example <- read_tsv("~/sshfs_mount/TCGA/TCGA_STAD/7c564146-979c-4b3d-9
   dplyr::select(-NumCounts) %>%
   mutate(TaxID = as.integer(TaxID)) %>%
   print()
-
-
 ```
 
 Goal:
@@ -69,6 +64,8 @@ Genera abundance, species abundance, and strain abundance as correlates
 genus_list <- tcga_counts$counts$genus
 species_list <- tcga_counts$counts$species
 taxid_list <- tcga_counts$counts$taxid
+kingdom_list <- tcga_counts$counts$kingdom
+phylum_list <- tcga_counts$counts$phylum
 ```
 
 Visualize distribution

@@ -293,3 +293,63 @@ ftab <- list.files() %>%
 # apply gather function to table
 map2(ftab$input_dir, ftab$tcga_project, gather_counts)
 ```
+
+Get read counts
+```{r}
+input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC"
+
+gather_reads <- function(input_dir, tcga_project){
+  #
+  # function to gather all read count totals from get_reads.sh results
+  # path to directories as a quoted string as dir arguments
+  # ok if nested in subdirectories
+  # 4-letter TCGA project as project argument
+  # before starting, ensure no duplicate file_ids
+  #
+  # load required packages
+  library(tidyverse)
+  #
+  # set constants: 
+  output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts"
+  #
+  # print project for troubleshooting
+  print(paste0("starting analysis of ", tcga_project))
+  #
+  paths_df <- dir(path = input_dir, 
+      recursive = TRUE, 
+      include.dirs = FALSE, 
+    full.names = TRUE) %>%
+    enframe() %>%
+    dplyr::filter(grepl("bam_reads.txt", value)) %>%
+    separate(value, into = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, "file_id"),
+             sep = "/", remove = FALSE) %>%
+    dplyr::select(pathto = value, file_id) %>%
+    mutate(reads = map(pathto, scan)) %>%
+    mutate(reads = unlist(reads)) %>%
+    mutate(project = rep(tcga_project, times = nrow(.))) %>%
+    dplyr::select(project, file_id, reads) 
+    #
+    # write out for later use
+    write_csv(paths_df,  
+            paste0(output_dir, 
+                   "/", 
+                   tcga_project, 
+                   "_totalreads.csv"))
+}
+
+# make table of input variables
+ftab <- list.files() %>%
+  as_tibble() %>%
+  dplyr::rename(directory = value) %>%
+  dplyr::filter(grepl("TCGA_", directory)) %>%
+  separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
+  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/", 
+                            directory)) %>%
+  dplyr::select(input_dir, tcga_project) %>%
+  # remove projects with missing data
+  dplyr::filter(!tcga_project %in% c("BRCA", "COAD", "LUSC", "MESO", "PAAD")) %>%
+  print() 
+
+# apply gather function to table
+map2(ftab$input_dir, ftab$tcga_project, gather_reads)
+```
