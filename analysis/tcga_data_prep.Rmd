@@ -15,9 +15,24 @@ rm(list=ls())
 set.seed(818)
 ```
 
+Load packages
+```{r}
+# data cleaning
+library(tidyverse)
+```
+
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
 Setup on local
 ```{bash, eval = FALSE}
-sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mjl62 ~/sshfs_mount/scratch
+sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mjl62 ~/sshfs_mount/TCGA
+
+# get immune correlates
+cd ~/sshfs_mount/TCGA/agamemnon_counts
+
+curl https://contattafiles.s3.us-west-1.amazonaws.com/tnt40761/jOjcXzknipvEC1q/Characteristics.tsv > IMM_correlates.tsv
 ```
 
 Load packages
@@ -37,11 +52,34 @@ tcga_proj <- list("STAD" = "STAD",
                   "ESCA" = "ESCA",
                   "KIRK" = "KIRC",
                   "HNSC" = "HNSC")
+# second batch
+tcga_proj <- list("ACC" = "ACC",
+                  "BLCA" = "BLCA",
+                  "CESC" = "CESC",
+                  "COAD" = "COAD",
+                  "KICH" = "KICH",
+                  "KIRP" = "KIRP",
+                  "LAML" = "LAML",
+                  "LIHC" = "LIHC",
+                  "MESO" = "MESO",
+                  "PAAD" = "PAAD",
+                  "PCPG" = "PCPG",
+                  "PRAD" = "PRAD",
+                  "READ" = "READ",
+                  "SARC" = "SARC",
+                  "SKCM" = "SKCM",
+                  "STAD" = "STAD",
+                  "TGCT" = "TGCT",
+                  "THCA" = "THCA",
+                  "THYM" = "THYM",
+                  "UCS" = "UCS",
+                  "UVM" = "UVM")
+
 
 # function to read in data for each project
 file_loader <- function(tcga_proj){
   # assign path to data files
-  path_to_directory <- "~/sshfs_mount/scratch/agamemnon_counts/"
+  path_to_directory <- "~/sshfs_mount/TCGA/agamemnon_counts/"
   # read in genus counts
   genus_counts <- read_csv(
   paste0(path_to_directory,
@@ -57,6 +95,11 @@ file_loader <- function(tcga_proj){
     paste0(path_to_directory,
            tcga_proj, "_taxID_counts.csv")
   )
+  # read in kingdom counts
+  kingdom_counts <- read_csv(
+    paste0(path_to_directory,
+           tcga_proj, "_kingdom_counts.csv")
+  )
   # read in clinical data
   clindat <- read_csv(
     paste0(path_to_directory, 
@@ -69,8 +112,8 @@ file_loader <- function(tcga_proj){
     # and does not look pretty
     select(everything())
   # make counts tables into a list for batch processing
-  counts <- list(genus_counts, species_counts, taxid_counts)
-  names(counts) <- c("genus", "species", "taxid")
+  counts <- list(genus_counts, species_counts, taxid_counts, kingdom_counts)
+  names(counts) <- c("genus", "species", "taxid", "kingdom")
   # return a list of counts (nested) and clinical data
   combined_list <- list("counts" = counts, "clindat" = clindat)
   combined_list
@@ -105,6 +148,7 @@ convert_to_barcodes <- function(list_as_element){
   list("genus" = counts_barcodes[["genus"]], 
        "species" = counts_barcodes[["species"]],
        "taxid" = counts_barcodes[["taxid"]],
+       "kingdom" = counts_barcodes[["kingdom"]],
        "clindat" = clindat)
 }
 # apply function to list
@@ -113,7 +157,7 @@ tcga_barcodes_list
 
 # IMMUNE CORRELATES--------------------------------------------
 # read in
-path_to_directory <- "~/sshfs_mount/scratch/agamemnon_counts/"
+path_to_directory <- "~/sshfs_mount/TCGA/agamemnon_counts/"
 imm_corr <- read_tsv(
   paste0(path_to_directory, "IMM_correlates.tsv")
   ) %>% 
@@ -132,20 +176,32 @@ genera_lister <- function(list_element){
 genera
 }
 species_lister <- function(list_element){
-  genera <- list_element[["species"]]
-  genera
+  species <- list_element[["species"]]
+  species
 }
 taxid_lister <- function(list_element){
-  genera <- list_element[["taxid"]]
-  genera
+  taxid <- list_element[["taxid"]]
+  taxid
+}
+kingdom_lister <- function(list_element){
+  kingdom <- list_element[["kingdom"]]
+  kingdom
+}
+phylum_lister <- function(list_element){
+  phylum <- list_element[["phylum"]]
+  phylum
 }
 # apply functions to list
 genera_list <- purrr::map(tcga_barcodes_list, genera_lister)
 species_list <- purrr::map(tcga_barcodes_list, species_lister)
 taxid_list <- purrr::map(tcga_barcodes_list, taxid_lister)
+phylum_list <- purrr::map(tcga_barcodes_list, phylum_lister)
+kingdom_list <- purrr::map(tcga_barcodes_list, kingdom_lister)
 
 # create nested list of counts
-counts_sublist <- list("genus" = genera_list,
+counts_sublist <- list("kingdom" = kingdom_list,
+                       "phylum" = phylum_list,
+                       "genus" = genera_list,
                        "species" = species_list, 
                        "taxid" = taxid_list)
 
@@ -170,6 +226,50 @@ Check integrity
 tcga_counts <- readRDS("data/tcga_counts_list.rds")
 str(tcga_counts$counts, max.level = 2)
 str(tcga_counts, max.level = 2)
-tcga_counts$counts$genus$STAD
-tcga_counts$counts$species$STAD
+tcga_counts$counts$genus$ACC
+tcga_counts$counts$species$ACC
+tcga_counts$counts$kingdom$ACC
+```
+
+Combine first and second batch
+```{r}
+batch_one <- readRDS("~/Projects/ag_microbiome/data/tcga_counts_list.rds")
+batch_two <- readRDS("~/Projects/tcga_micro/data/tcga_counts_list.rds")
+
+dropped <- which(names(batch_two$counts$genus) %in% c("STAD", "LAML"))
+dropped
+comb_genus <- c(batch_one$counts$genus, batch_two$counts$genus[-dropped])
+str(comb_genus, max.level = 2)
+
+comb_species <- c(batch_one$counts$species, batch_two$counts$species[-dropped])
+str(comb_species, max.level = 2)
+
+comb_taxid <- c(batch_one$counts$species, batch_two$counts$taxid[-dropped])
+str(comb_taxid, max.level = 2)
+
+comb_kingdom <- c(batch_one$counts$kingdom, batch_two$counts$kingdom[-dropped])
+str(comb_kingdom, max.level = 2)
+
+comb_phylum <- c(batch_one$counts$phylum, batch_two$counts$phylum[-dropped])
+str(comb_phylum, max.level = 2)
+
+comb_counts <- list("genus" = comb_genus,
+                 "species" = comb_species,
+                 "taxid" = comb_taxid,
+                 "kingdom" = comb_kingdom,
+                 "phylum" = comb_phylum)
+str(comb_counts, max.level = 2)
+
+comb_clindat <- c(batch_one$clindat, batch_two$clindat[-dropped])
+str(comb_clindat, max.level = 2)
+
+comb_imm_cor <- c(batch_one$imm_cor, batch_two$imm_cor[-dropped])
+str(comb_imm_cor, max.level = 2)
+
+comb_tcga_counts <- list("counts" = comb_counts, 
+                         "clindat" = comb_clindat, 
+                         "imm_cor" = comb_imm_cor)
+str(comb_tcga_counts, max.level = 2)
+
+saveRDS(comb_tcga_counts, "data/comb_tcga_counts_list.rds")
 ```

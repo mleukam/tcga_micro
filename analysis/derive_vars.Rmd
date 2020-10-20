@@ -13,6 +13,10 @@ rm(list=ls())
 set.seed(818)
 ```
 
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
 Read in packages
 ```{r}
 library(tidyverse)
@@ -23,8 +27,10 @@ library(vegan)
 Read in data
 From tcga_data_prep
 ```{r}
-tcga_counts <- readRDS("data/tcga_counts_list.rds")
-genus_tbl <- tcga_counts$counts$genus$STAD
+tcga_counts <- readRDS("data/comb_tcga_counts_list.rds")
+str(tcga_counts, max.level = 2)
+genus_tbl <- tcga_counts$counts$genus$STAD %>%
+  print()
 ```
 
 ```{bash}
@@ -81,19 +87,13 @@ counts_dist_plotter <- function(df){
   plot <- df %>%
     ggplot(aes(x = counts, color = tcga_barcode)) +
       geom_density() +
-      theme(legend.position = "none") +
-      ggtitle("Counts Distribution by Genus")
+      theme(legend.position = "none")
   
 }
 
 dist_plot_list <- map(tidy_genera, counts_dist_plotter)
-ggarrange(dist_plot_list[[1]],
-          dist_plot_list[[2]],
-          dist_plot_list[[3]],
-          dist_plot_list[[4]],
-          dist_plot_list[[5]],
-          dist_plot_list[[6]],
-          dist_plot_list[[7]])
+do.call(ggarrange, dist_plot_list) %>%
+  annotate_figure(., top = text_grob("Counts Distribution by Genus", color = "black", face = "bold", size = 14))
           
 # counts distribution
 log_dist_plotter <- function(df){
@@ -108,14 +108,8 @@ log_dist_plotter <- function(df){
 
 log_plot_list <- map(tidy_genera, log_dist_plotter)
 names(log_plot_list) <- names(tidy_genera)
-ggarrange(log_plot_list[[1]],
-          log_plot_list[[2]],
-          log_plot_list[[3]],
-          log_plot_list[[4]],
-          log_plot_list[[5]],
-          log_plot_list[[6]],
-          log_plot_list[[7]],
-          labels = names(log_plot_list))
+do.call(ggarrange, log_plot_list) %>%
+  annotate_figure(., top = text_grob("log(Counts) Distribution by Genus", color = "black", face = "bold", size = 14))
 ```
 
 ## Derive new variables
@@ -178,7 +172,8 @@ taxid_alpha <- map(taxid_df_list, alpha_getter)
 
 #### High-level taxonomy
 ```{r}
-
+kingdom_list <- tcga_counts$counts$kingdom
+phylum_list <- tcga_counts$counts$phylum
 
 ```
 

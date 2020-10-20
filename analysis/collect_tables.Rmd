@@ -16,6 +16,10 @@ On O2 cluster
 rm(list=ls())
 ```
 
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
 Setup on O2 cluster
 ```{bash, eval=FALSE, include=TRUE}
 srun --pty -p interactive --mem 64G -t 0-06:00 /bin/bash
@@ -25,13 +29,18 @@ cd /n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/
 R
 ```
 
+Load packages
+```{r}
+library(tidyverse)
+```
+
 ## Define function
 ```{r}
 input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC"
 output_dir <- "/n/scratch3/users/m/mjl62/agamemnon_counts"
 tcga_project <- "HNSC"
 
-gather_counts <- function(input_dir, output_dir, tcga_project){
+gather_counts <- function(input_dir, tcga_project){
   #
   # function to gather all agamemnon output files
   # path to directories as a quoted string as dir arguments
@@ -47,6 +56,13 @@ gather_counts <- function(input_dir, output_dir, tcga_project){
   library(tidyverse)
   library(GenomicDataCommons)
   library(Matrix.utils)
+  #
+  # set constants: 
+  output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts"
+  #
+  # print starting message
+  print(paste0("starting analysis of TCGA project ", tcga_project))
+  #
   # get dataframe of paths to results.tab files with file uuids
   paths_df <- dir(path = input_dir, 
            recursive = TRUE, 
@@ -173,6 +189,51 @@ gather_counts <- function(input_dir, output_dir, tcga_project){
     as.data.frame() %>%
     rownames_to_column(var = "Genus") %>%
     as_tibble()
+  # counts by kingdom
+  king_counts_intermed <- taxid_counts_tbl %>%
+    left_join(taxonomy, by = "TaxID") %>%
+    dplyr::select(Species, everything()) %>%
+    dplyr::select(-Phylum, 
+                  -Class,
+                  -Order, 
+                  -Family,
+                  -Genus,
+                  -Species,
+                  -Scientific_Name,
+                  -TaxID)
+  king_counts_mat <- king_counts_intermed %>%
+    dplyr::select(-Superkingdom) %>%
+    as.matrix()
+  rownames(king_counts_mat) <- king_counts_intermed %>%
+    pull(Superkingdom)
+  king_counts_tbl <- aggregate.Matrix(king_counts_mat, row.names(king_counts_mat)) %>%
+    as.matrix() %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "Superkingdom") %>%
+    as_tibble()
+   # counts by phylum
+  phylum_counts_intermed <- taxid_counts_tbl %>%
+    left_join(taxonomy, by = "TaxID") %>%
+    dplyr::select(Species, everything()) %>%
+    dplyr::select(-Superkingdom, 
+                  -Class,
+                  -Order, 
+                  -Family,
+                  -Genus,
+                  -Species,
+                  -Scientific_Name,
+                  -TaxID)
+  phylum_counts_mat <- phylum_counts_intermed %>%
+    dplyr::select(-Phylum) %>%
+    as.matrix()
+  rownames(phylum_counts_mat) <- phylum_counts_intermed %>%
+    pull(Phylum)
+  phylum_counts_tbl <- aggregate.Matrix(phylum_counts_mat, row.names(phylum_counts_mat)) %>%
+    as.matrix() %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "Phylum") %>%
+    as_tibble()
+  #
   #
   #
   # write taxID counts out as CSV
@@ -193,6 +254,16 @@ gather_counts <- function(input_dir, output_dir, tcga_project){
                    "/", 
                    tcga_project, 
                    "_genus_counts.csv"))
+  write_csv(king_counts_tbl,
+            paste0(output_dir,
+                   "/",
+                   tcga_project,
+                   "_kingdom_counts.csv"))
+  write_csv(phylum_counts_tbl,
+            paste0(output_dir,
+                   "/",
+                   tcga_project,
+                   "_phylum_counts.csv"))
   # write clinical data out as CSV
   write_csv(clin_df,  
             paste0(output_dir, 
@@ -203,41 +274,22 @@ gather_counts <- function(input_dir, output_dir, tcga_project){
 ```
 
 ## Apply function
-BRCA, ESCA, HNSC, KIRC, LUAD, OV, and STAD
+
 On O2 (interactive)
 ```{r, eval=FALSE, include=TRUE}
-# Head and neck SCC
-gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC",
-              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
-              tcga_project = "HNSC")
+# make table of input variables
+ftab <- list.files() %>%
+  as_tibble() %>%
+  dplyr::rename(directory = value) %>%
+  dplyr::filter(grepl("TCGA_", directory)) %>%
+  separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
+  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/", 
+                            directory)) %>%
+  dplyr::select(input_dir, tcga_project) %>%
+  # remove projects with missing data
+  dplyr::filter(!tcga_project %in% c("BRCA", "GBM", "ESCA", "HNSC", "KIRC", "LGG", "LUAD", "LUSC", "OV")) %>%
+  print() 
 
-# Kidney Renal Clear Cell Carcinoma
-gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_KIRC",
-              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
-              tcga_project = "KIRC")
-
-# Esophageal cancer
-gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_ESCA",
-              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
-              tcga_project = "ESCA")
-
-# Breast cancer
-gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_BRCA",
-              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
-              tcga_project = "BRCA")
-
-# Ovarian cancer
-gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_OV",
-              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
-              tcga_project = "OV")
-
-# Lung cancer
-gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_LUAD",
-              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
-              tcga_project = "LUAD")
-
-# Stomach cancer
-gather_counts(input_dir = "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_STAD",
-              output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts",
-              tcga_project = "STAD")
+# apply gather function to table
+map2(ftab$input_dir, ftab$tcga_project, gather_counts)
 ```
