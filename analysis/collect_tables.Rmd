@@ -233,6 +233,28 @@ gather_counts <- function(input_dir, tcga_project){
     as.data.frame() %>%
     rownames_to_column(var = "Phylum") %>%
     as_tibble()
+  # counts by taxid/scientific_name
+  taxid_counts_intermed <- taxid_counts_tbl %>%
+    left_join(taxonomy, by = "TaxID") %>%
+    dplyr::select(Scientific_Name, everything()) %>%
+    dplyr::select(-Superkingdom, 
+                  -Class,
+                  -Order, 
+                  -Family,
+                  -Genus,
+                  -Species,
+                  -Phylum,
+                  -TaxID)
+  taxid_counts_mat <- taxid_counts_intermed %>%
+    dplyr::select(-Scientific_Name) %>%
+    as.matrix()
+  rownames(taxid_counts_mat) <- taxid_counts_intermed %>%
+    pull(Scientific_Name)
+  taxid_counts_tbl <- aggregate.Matrix(taxid_counts_mat, row.names(taxid_counts_mat)) %>%
+    as.matrix() %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "Scientific Name") %>%
+    as_tibble()
   #
   #
   #

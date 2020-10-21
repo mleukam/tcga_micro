@@ -66,6 +66,12 @@ species_list <- tcga_counts$counts$species
 taxid_list <- tcga_counts$counts$taxid
 kingdom_list <- tcga_counts$counts$kingdom
 phylum_list <- tcga_counts$counts$phylum
+
+genus_cpm_list <- tcga_counts$cpm_counts$genus_cpm
+species_cpm_list <- tcga_counts$cpm_counts$species_cpm
+taxid_cpm_list <- tcga_counts$cpm_counts$taxid_cpm
+kingdom_cpm_list <- tcga_counts$cpm_counts$kingdom_cpm
+phylum_cpm_list <- tcga_counts$cpm_counts$phylum_cpm
 ```
 
 Visualize distribution
@@ -77,7 +83,7 @@ tidy_generator <- function(listelement){
     pivot_longer(-tcga_barcode, names_to = "genus", values_to = "counts") %>%
     arrange(desc(counts))
 }
-tidy_genera <- map(genus_list, tidy_generator)
+tidy_genera <- map(genus_cpm_list, tidy_generator)
 
 # counts distribution
 counts_dist_plotter <- function(df){
