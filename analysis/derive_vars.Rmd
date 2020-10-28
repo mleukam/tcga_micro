@@ -2,7 +2,9 @@
 title: "derive_vars"
 author: "Michael Leukam"
 date: "2020-09-12"
-output: workflowr::wflow_html
+output: 
+  workflowr::wflow_html
+  html_notebook
 editor_options:
   chunk_output_type: console
 ---
@@ -30,6 +32,8 @@ From tcga_data_prep
 tcga_counts <- readRDS("data/comb_tcga_counts_list.rds")
 str(tcga_counts, max.level = 2)
 genus_tbl <- tcga_counts$counts$genus$STAD %>%
+  print()
+imm_cor_tbl <- tcga_counts$imm_cor$STAD %>%
   print()
 ```
 
@@ -74,7 +78,7 @@ kingdom_cpm_list <- tcga_counts$cpm_counts$kingdom_cpm
 phylum_cpm_list <- tcga_counts$cpm_counts$phylum_cpm
 ```
 
-Visualize distribution
+Visualize distributions
 ```{r}
 # make tidy dataframe for plotting
 # run this on the genus sublist
@@ -83,6 +87,7 @@ tidy_generator <- function(listelement){
     pivot_longer(-tcga_barcode, names_to = "genus", values_to = "counts") %>%
     arrange(desc(counts))
 }
+# make tidy frames with cpm
 tidy_genera <- map(genus_cpm_list, tidy_generator)
 
 # counts distribution
@@ -93,12 +98,12 @@ counts_dist_plotter <- function(df){
       theme(legend.position = "none")
   
 }
-
+# plot raw distributions of cpm for each tumor type
 dist_plot_list <- map(tidy_genera, counts_dist_plotter)
 do.call(ggarrange, dist_plot_list) %>%
   annotate_figure(., top = text_grob("Counts Distribution by Genus", color = "black", face = "bold", size = 14))
           
-# counts distribution
+# log cpm distribution
 log_dist_plotter <- function(df){
   plot <- df %>%
     mutate(lcounts = log(counts)) %>%
@@ -108,7 +113,7 @@ log_dist_plotter <- function(df){
       theme(legend.position = "none") +
       expand_limits(x = c(-20, 30))
 }
-
+# log cpm density plots
 log_plot_list <- map(tidy_genera, log_dist_plotter)
 names(log_plot_list) <- names(tidy_genera)
 do.call(ggarrange, log_plot_list) %>%
@@ -120,7 +125,7 @@ do.call(ggarrange, log_plot_list) %>%
 #### Alpha diversity
 
 ```{r}
-# get counts in matrix form 
+# get cpm in matrix form 
 make_counts_df <- function(df){
   df %>%
     dplyr::group_by(tcga_barcode) %>%
@@ -128,9 +133,9 @@ make_counts_df <- function(df){
     as.data.frame() %>%
     column_to_rownames(var = "tcga_barcode")
 }
-genus_df_list <- map(genus_list, make_counts_df)
-species_df_list <- map(species_list, make_counts_df)
-taxid_df_list <- map(taxid_list, make_counts_df)
+genus_df_list <- map(genus_cpm_list, make_counts_df)
+species_df_list <- map(species_cpm_list, make_counts_df)
+taxid_df_list <- map(taxid_cpm_list, make_counts_df)
 
 # get measures of alpha-diversity
 alpha_getter <- function(df){
@@ -175,14 +180,29 @@ taxid_alpha <- map(taxid_df_list, alpha_getter)
 
 #### High-level taxonomy
 ```{r}
-kingdom_list <- tcga_counts$counts$kingdom
-phylum_list <- tcga_counts$counts$phylum
+kingdom_list_element <- tcga_counts$cpm_counts$kingdom_cpm$ACC
 
+high_leveler <- function(kingdom_list_element){
+  fractional_kingdom <- kingdom_list_element %>%
+    dplyr::rename(viral = `---`, archaea = Archaea, 
+                  bacteria = Bacteria, 
+                  eukaryota = Eukaryota) %>%
+    mutate(total_cpm = viral + archaea + bacteria + eukaryota) %>%
+    mutate(across(-c(tcga_barcode, total_cpm), ~ . / total_cpm, .names = "frac_{.col}")) %>%
+    dplyr::rename(microbe_cpm = total_cpm)
+}
+
+# apply function
+kingdom_list <- tcga_counts$counts$kingdom
+high_level_vars <- map(kingdom_list, high_leveler)
+names(high_level_vars) <- names(kingdom_list)
+high_level_vars
 ```
 
 ```{r}
-genus_analysis_list <- list("genus_counts" = tcga_counts$counts$genus,
-     "genus_dervars" = genus_dervars,
+genus_analysis_list <- list("genus_cpm_list" = tcga_counts$counts$genus,
+     "genus_alpha" = genus_alpha,
+     "high_level_vars" = high_level_vars,
      "clindat" = tcga_counts$clindat,
      "imm_cor" = tcga_counts$imm_cor)
 saveRDS(genus_analysis_list, "data/genus_analysis_list.rds")

@@ -13,3 +13,5 @@ analysis/site_libs
 *.rds
 *.rds
 *.rds
+*.tsv
+*.xlsx

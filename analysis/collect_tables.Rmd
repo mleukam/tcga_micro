@@ -111,7 +111,6 @@ gather_counts <- function(input_dir, tcga_project){
   barcode_lookuptable <- clin_df %>%
     dplyr::select(tcga_barcode, file_id, case_id)
   #
-  #
   # read tsvs to a list of tibbles
   paths_list <- paths_df %>%
     pull(pathto) %>%
@@ -257,7 +256,6 @@ gather_counts <- function(input_dir, tcga_project){
     as_tibble()
   #
   #
-  #
   # write taxID counts out as CSV
   write_csv(taxid_counts_tbl, 
             paste0(output_dir, 
@@ -340,7 +338,7 @@ gather_reads <- function(input_dir, tcga_project){
   paths_df <- dir(path = input_dir, 
       recursive = TRUE, 
       include.dirs = FALSE, 
-    full.names = TRUE) %>%
+      full.names = TRUE) %>%
     enframe() %>%
     dplyr::filter(grepl("bam_reads.txt", value)) %>%
     separate(value, into = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, "file_id"),
