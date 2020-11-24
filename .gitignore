@@ -15,3 +15,5 @@ analysis/site_libs
 *.rds
 *.tsv
 *.xlsx
+*.png
+*.csv

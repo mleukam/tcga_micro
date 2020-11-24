@@ -25,7 +25,7 @@ Setup on O2 cluster
 srun --pty -p interactive --mem 64G -t 0-06:00 /bin/bash
 module load gcc/6.2.0
 module load R/4.0.1
-cd /n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/
+cd /n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2
 R
 ```
 
@@ -37,9 +37,11 @@ library(tidyverse)
 ## Define function
 ```{r}
 input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC"
-output_dir <- "/n/scratch3/users/m/mjl62/agamemnon_counts"
+output_dir <- "/n/scratch3/users/m/mjl62/agamemnon_counts/mode2"
 tcga_project <- "HNSC"
+```
 
+```{r}
 gather_counts <- function(input_dir, tcga_project){
   #
   # function to gather all agamemnon output files
@@ -58,7 +60,7 @@ gather_counts <- function(input_dir, tcga_project){
   library(Matrix.utils)
   #
   # set constants: 
-  output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts"
+  output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts/mode2"
   #
   # print starting message
   print(paste0("starting analysis of TCGA project ", tcga_project))
@@ -297,18 +299,39 @@ gather_counts <- function(input_dir, tcga_project){
 
 On O2 (interactive)
 ```{r, eval=FALSE, include=TRUE}
+# navigate to target directory
+setwd("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2")
+
 # make table of input variables
-ftab <- list.files() %>%
+ftab_nostad <- list.files() %>%
   as_tibble() %>%
   dplyr::rename(directory = value) %>%
   dplyr::filter(grepl("TCGA_", directory)) %>%
   separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
-  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/", 
+  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/", 
                             directory)) %>%
   dplyr::select(input_dir, tcga_project) %>%
   # remove projects with missing data
-  dplyr::filter(!tcga_project %in% c("BRCA", "GBM", "ESCA", "HNSC", "KIRC", "LGG", "LUAD", "LUSC", "OV")) %>%
+  dplyr::filter(tcga_project != "STAD") %>%
   print() 
+
+# add stad project labeled "mode2"
+ftab_stad <- list.files() %>%
+  as_tibble() %>%
+  dplyr::rename(directory = value) %>%
+  dplyr::filter(grepl("TCGA_", directory)) %>%
+  separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
+  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/", 
+                            directory)) %>%
+  dplyr::select(input_dir, tcga_project) %>%
+  # remove projects with missing data
+  dplyr::filter(grepl("_mode2", input_dir)) %>%
+  print() 
+
+# combine tables 
+ftab <- ftab_nostad %>%
+  bind_rows(ftab_stad) %>%
+  print()
 
 # apply gather function to table
 map2(ftab$input_dir, ftab$tcga_project, gather_counts)
@@ -316,7 +339,8 @@ map2(ftab$input_dir, ftab$tcga_project, gather_counts)
 
 Get read counts
 ```{r}
-input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC"
+input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/TCGA_BRCA"
+tcga_project = "BRCA"
 
 gather_reads <- function(input_dir, tcga_project){
   #
@@ -330,7 +354,7 @@ gather_reads <- function(input_dir, tcga_project){
   library(tidyverse)
   #
   # set constants: 
-  output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts"
+  output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts/mode2"
   #
   # print project for troubleshooting
   print(paste0("starting analysis of ", tcga_project))
@@ -340,14 +364,14 @@ gather_reads <- function(input_dir, tcga_project){
       include.dirs = FALSE, 
       full.names = TRUE) %>%
     enframe() %>%
-    dplyr::filter(grepl("bam_reads.txt", value)) %>%
+    dplyr::filter(grepl("hisat2_host.log", value)) %>%
     separate(value, into = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, "file_id"),
              sep = "/", remove = FALSE) %>%
     dplyr::select(pathto = value, file_id) %>%
-    mutate(reads = map(pathto, scan)) %>%
-    mutate(reads = unlist(reads)) %>%
+    mutate(reads = map(pathto, ~ read.table(file = .,header = F, nrows = 1))) %>%
+    unnest(cols = c("reads")) %>%
     mutate(project = rep(tcga_project, times = nrow(.))) %>%
-    dplyr::select(project, file_id, reads) 
+    dplyr::select(project, file_id, reads = V1) 
     #
     # write out for later use
     write_csv(paths_df,  
@@ -357,18 +381,39 @@ gather_reads <- function(input_dir, tcga_project){
                    "_totalreads.csv"))
 }
 
+# navigate to target directory
+setwd("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2")
+
 # make table of input variables
-ftab <- list.files() %>%
+ftab_nostad <- list.files() %>%
   as_tibble() %>%
   dplyr::rename(directory = value) %>%
   dplyr::filter(grepl("TCGA_", directory)) %>%
   separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
-  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/", 
+  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/", 
                             directory)) %>%
   dplyr::select(input_dir, tcga_project) %>%
   # remove projects with missing data
-  dplyr::filter(!tcga_project %in% c("BRCA", "COAD", "LUSC", "MESO", "PAAD")) %>%
+  dplyr::filter(tcga_project != "STAD") %>%
   print() 
+
+# add stad project labeled "mode2"
+ftab_stad <- list.files() %>%
+  as_tibble() %>%
+  dplyr::rename(directory = value) %>%
+  dplyr::filter(grepl("TCGA_", directory)) %>%
+  separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
+  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/", 
+                            directory)) %>%
+  dplyr::select(input_dir, tcga_project) %>%
+  # remove projects with missing data
+  dplyr::filter(grepl("_mode2", input_dir)) %>%
+  print() 
+
+# combine tables 
+ftab <- ftab_nostad %>%
+  bind_rows(ftab_stad) %>%
+  print()
 
 # apply gather function to table
 map2(ftab$input_dir, ftab$tcga_project, gather_reads)

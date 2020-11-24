@@ -35,6 +35,7 @@ library(FactoMineR)
 # plotting packages
 library(survival)
 library(survminer)
+library(ComplexHeatmap)
 ```
 
 Read in data
@@ -85,6 +86,36 @@ str(dervars_list, max.level = 3)
 dervars_element <- dervars_list$STAD %>% print()
 imm_cor_element <- imm_cor_list$STAD %>% print()
 
+# whole TCGA correlations
+dervars_combined <- dervars_list %>% bind_rows() %>% print()
+imm_cor_combined <- imm_cor_list %>% bind_rows() %>% print()
+
+# make global TCGA dataframe
+imm_cor_combined_df <- dervars_combined %>%
+  left_join(imm_cor_combined) %>%
+  dplyr::select(-shannon, 
+                -simpson, 
+                -invsimpson,
+                -pielou_evenness, 
+                -rar_rich,
+                -viral,
+                -archaea,
+                -bacteria,
+                -eukaryota,
+                -microbe_cpm,
+                -frac_viral,
+                -frac_archaea,
+                -frac_bacteria,
+                -frac_eukaryota,
+                # select out text-based factors
+                -`TCGA Study`,
+                -`Immune Subtype`,
+                -`TCGA Subtype`,
+                # select out missing data factors
+                -`NA`,
+                -`frac_NA`) %>%
+  print()
+
 # define function
 # returns a list of sublists. Each sublist contains immune correlates
 # and alpha diversity derived variables for a single tumor type
@@ -96,7 +127,7 @@ imm_cor_df_maker <- function(dervars_element, imm_cor_element){
     # select out dervars
     dplyr::select(-shannon, 
                 -simpson, 
-                -pielou_evenness, 
+                -invsimpson,
                 -pielou_evenness, 
                 -rar_rich,
                 -viral,
@@ -120,7 +151,7 @@ imm_cor_df_maker <- function(dervars_element, imm_cor_element){
     dplyr::select(tcga_barcode,
                 shannon, 
                 simpson, 
-                pielou_evenness, 
+                invsimpson,
                 pielou_evenness, 
                 rar_rich,
                 viral,
@@ -167,7 +198,7 @@ combined_tbl <- map(imm_cor_list, function(list_element){
     as_tibble()
   left_join(imm_cor_tbl, dervars_tbl)
   })
-
+  
 # create columns of comparisons for correlations
 var_pairs <- map(colnames(imm_cor_list[[1]][["imm_cor"]]), function(imm_cor_var){
   enframe(colnames(imm_cor_list[[1]][["dervars"]])) %>%
@@ -227,13 +258,34 @@ cleaned_spearman <- map(combined_spearman, function(df){
                   alternative) %>%
     arrange(p_adj_fdr)
 }) 
-write_xlsx(cleaned_correlations, "output/tcga_correlations_spearman.xlsx")
+
+write_xlsx(cleaned_spearman, "output/tcga_correlations_spearman.xlsx")
 
 cleaned_pearson <- map(combined_pearson, function(df){
   df %>% dplyr::select(summary_var, imm_cor, estimate, p_adj_fdr, p.value, statistic, method, alternative)
 }) 
-write_xlsx(cleaned_correlations, "output/tcga_correlations_pearson.xlsx")
-  
+write_xlsx(cleaned_pearson, "output/tcga_correlations_pearson.xlsx")
+
+
+# create global combined dataframe
+combined_global <- imm_cor_combined_df %>%
+  left_join(dervars_combined) %>%
+  print()
+
+global_cor_tab <- var_pairs %>% 
+  mutate(
+    r_test = purrr::map2(x, 
+                         y, 
+                         possibly(~ stats::cor.test(combined_global[[.x]],
+                                                    combined_global[[.y]], 
+                                                    method = "spearman"),
+                                  otherwise = data.frame())),
+    r_test = purrr::map(r_test, tidy)) %>%
+  unnest(r_test) %>%
+  dplyr::rename(summary_var = x, imm_cor = y) %>%
+  mutate(p_adj_fdr = case_when(is.na(.$p.value) == FALSE ~ p.adjust(.$p.value))) %>%
+  arrange(p_adj_fdr) 
+
 ```
 
 #### Plots of summary variables
@@ -478,17 +530,14 @@ dervars_unified_tbl %>%
   ggtitle("Fraction of eukaryote CPM by tumor")
 ```
 
-
-
-
-
-#### Correlates of summary variables
+#### Plots of correlates of summary variables
 ```{r}
 map(cleaned_pearson, function(df){
   df %>%
     dplyr::filter(p_adj_fdr < 0.1)
 })
 
+# Will first look at melanoma given CBT trial analysis
 cleaned_pearson$SKCM %>% arrange(p_adj_fdr) %>% slice(1:3) %>% print()
 
 combined_tbl %>% 
@@ -498,13 +547,379 @@ combined_tbl %>%
     geom_point() +
     geom_smooth() +
     ggtitle("Melanoma plasma cells vs viral fraction")
+
+combined_tbl %>% 
+  .[["SKCM"]] %>%
+  dplyr::select(frac_bacteria, plasma_cells = `Plasma Cells`) %>%
+  ggplot(aes(x = frac_bacteria, y = plasma_cells)) +
+    geom_point() +
+    geom_smooth() +
+    ggtitle("Melanoma plasma cells vs bacterial fraction")
+
+combined_tbl %>% 
+  .[["SKCM"]] %>%
+  dplyr::select(pielou_evenness, til_regional_frac = `TIL Regional Fraction`) %>%
+  ggplot(aes(x = pielou_evenness, y = til_regional_frac)) +
+    geom_point() +
+    geom_smooth() +
+    ggtitle("Melanoma TIL regional fraction vs Pielou evenness")
+```
+
+
+## Genus correlations
+```{r}
+# genera for correlation
+genera_names <- genus_analysis_list$genus_cpm_list %>%
+  # drop variables not assigned to a genus
+  map(~ .[(-which(colnames(.) == "---"))]) %>%
+  # get colnames for comparisons
+  map(~ .[(-which(colnames(.) == "tcga_barcode"))]) %>%
+  .[[1]] %>%
+  colnames(.)
+
+# immune correlates for correlation
+imm_cor_names <- combined_tbl %>%
+  # get colnames for comparisons
+  map(~ .[(-which(colnames(.) == "tcga_barcode"))]) %>%
+  .[[1]] %>%
+  colnames(.)
+
+# make comparison table
+var_pairs <- map(genera_names, function(genus_name){
+  enframe(imm_cor_names) %>%
+    bind_cols(rep(genus_name, times = nrow(.))) %>%
+    select(imm_cor = value, genus = `...3`)
+}) %>%
+  bind_rows() %>%
+  print()
+
+# make table of data for correlations
+cpm_unified_df <- genus_analysis_list$genus_cpm_list %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name)
+combined_unified_df <- combined_tbl %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name)
+unified_list <- combined_unified_df %>%
+  left_join(cpm_unified_df) %>%
+  nest(-tcga_proj) %>%
+  deframe() %>%
+  print()
+
+# get correlations
+genus_pearson <- map(unified_list, function(df){
+  cor_tab <- var_pairs %>% 
+    mutate(
+      r_test = purrr::map2(
+        imm_cor, genus, 
+        possibly(~ stats::cor.test(df[[.x]], df[[.y]], method = "pearson"),
+          otherwise = data.frame())),
+      r_test = purrr::map(r_test, tidy)) %>%
+    unnest(r_test) %>%
+    mutate(p_adj_fdr = case_when(
+      is.na(.$p.value) == FALSE ~ p.adjust(.$p.value))) %>%
+    dplyr::select(imm_cor, genus, estimate, p_adj_fdr, p.value, everything())
+  })
+
+# split out summary variables
+sumvars <- colnames(dervars_dfs[[1]])
+genus_pearson_dervars_trim <- genus_pearson %>%
+  map(~ filter(., imm_cor %in% sumvars)) %>%
+  map(~ arrange(., p_adj_fdr)) %>%
+  print()
+# save for later analysis
+saveRDS(genus_pearson_dervars_trim, "output/genus_sumvar_correlations_pearson.rds")
+
+# split out immune correlates
+imvars <- colnames(imm_cor_dfs[[1]])
+genus_pearson_immune_trim <- genus_pearson %>%
+  map(~ filter(., imm_cor %in% imvars)) %>%
+  map(~ arrange(., p_adj_fdr)) %>%
+  print()
+# write excel spreadsheet
+saveRDS(genus_pearson_immune_trim, "output/genus_immune_correlations_pearson.rds")
+
+# immune correlations for display
+genus_pearson_immune_trim %>%
+  map(., ~ .[1:200, ]) %>%
+  # remove tables with missing data
+  .[-(which(names(.) == "UVM"))] %>%
+  .[-(which(names(.) == "PAAD"))] %>%
+  write_xlsx(., "output/display_genus_immune_correlations_pearson.xlsx")
+
+# get spearman correlations
+genus_spearman <- map(unified_list, function(df){
+  cor_tab <- var_pairs %>% 
+    mutate(
+      r_test = purrr::map2(
+        imm_cor, genus, 
+        possibly(~ stats::cor.test(df[[.x]], df[[.y]], method = "spearman"),
+          otherwise = data.frame())),
+      r_test = purrr::map(r_test, tidy)) %>%
+    unnest(r_test) %>%
+    mutate(p_adj_fdr = case_when(
+      is.na(.$p.value) == FALSE ~ p.adjust(.$p.value))) %>%
+    dplyr::select(imm_cor, genus, estimate, p_adj_fdr, p.value, everything())
+  })
+
+# split out summary variables
+sumvars <- colnames(dervars_dfs[[1]])
+genus_spearman_dervars_trim <- genus_spearman %>%
+  map(~ filter(., imm_cor %in% sumvars)) %>%
+  map(~ arrange(., p_adj_fdr)) %>%
+  print()
+# save for later analysis
+saveRDS(genus_spearman_dervars_trim, "output/genus_sumvar_correlations_spearman.rds")
+write_xlsx(genus_spearman_dervars_trim, "output/display_genus_summary_correlations_spearman.xlsx")
+
+# split out immune correlates
+imvars <- colnames(imm_cor_dfs[[1]])
+genus_spearman_immune_trim <- genus_spearman %>%
+  map(~ filter(., imm_cor %in% imvars)) %>%
+  map(~ arrange(., p_adj_fdr)) %>%
+  print()
+# save for later analysis
+saveRDS(genus_spearman_immune_trim, "output/genus_immune_correlations_spearman.rds")
+
+# immune correlations for display
+genus_spearman_immune_trim %>%
+  map(., ~ .[1:200, ]) %>%
+  # remove tables with missing data
+  .[-(which(names(.) == "UVM"))] %>%
+  .[-(which(names(.) == "PAAD"))] %>%
+  write_xlsx(., "output/display_genus_immune_correlations_spearman.xlsx")
+
+```
+
+#### Immune correlate heatmaps
+
+Alternate start site
+```{r}
+# read in data
+genus_spearman_immune_trim <- readRDS("output/genus_immune_correlations_spearman.rds")
+
+genus_spearman_immune_select <- genus_spearman_immune_trim %>%
+  # remove studies with too much missing data
+  .[-(which(names(.) == "UVM"))] %>%
+  .[-(which(names(.) == "PAAD"))]
+df <- genus_spearman_immune_select[[1]]
+
+### PROBLEM: should I be selecting the most variance in CORRELATIONS?
+### why do some of these heatmaps fail? selecting most variance?
+### doesn't work if all genera included
+genus_spearman_hm_list <- map(genus_spearman_immune_select, function(df){
+  df %>% 
+    dplyr::select(imm_cor, genus, estimate) %>%
+    pivot_wider(names_from = imm_cor, values_from = estimate) %>%
+    rowwise %>% 
+    mutate(variance = c_across(-genus) %>% var()) %>% 
+    ungroup() %>% 
+    slice_max(n = 100, order_by = variance) %>%
+    dplyr::select(-variance) %>%
+    as.data.frame() %>%
+    column_to_rownames(var = "genus") %>%
+    as.matrix() %>%
+    Heatmap(., name = "Scaled\nSpearman\ncorrelation")
+})
+
+# save the heatmaps
+for (hm in names(genus_spearman_hm_list)){
+  png(paste0("plots/heatmap_", hm, ".png"), 
+      width = 12, 
+      height = 18, 
+      units = "in", res = 100)
+  draw(genus_spearman_hm_list[[hm]],
+      column_title = hm, 
+      column_title_gp = gpar(fontsize = 36, fontface = "bold"))
+  dev.off()
+}
+
+STAD <- genus_spearman_immune_trim[["STAD"]] %>%
+  dplyr::mutate(imm_cor = ifelse(imm_cor == "Lymphocyte Infiltration Signature Score", "Lymphocyte Infiltration", imm_cor)) %>%
+  dplyr::mutate(imm_cor = ifelse(imm_cor == "Homologous Recombination Defects", "Hom. Recombination Defects", imm_cor)) %>%
+  dplyr::filter(!imm_cor == "invsimpson") %>%
+  dplyr::filter(!imm_cor == "Fraction Altered") %>%
+  dplyr::filter(!imm_cor == "Number of Segments") %>%
+  dplyr::select(imm_cor, genus, estimate) %>%
+  pivot_wider(names_from = imm_cor, values_from = estimate) %>%
+    rowwise %>% 
+    mutate(variance = c_across(-genus) %>% var()) %>% 
+    ungroup() %>% 
+    slice_max(n = 100, order_by = variance) %>%
+    dplyr::select(-variance) %>%
+    as.data.frame() %>%
+    column_to_rownames(var = "genus") %>%
+    as.matrix() %>%
+    Heatmap(., name = "Scaled\nSpearman\ncorrelation")
+
+STAD <- genus_spearman_immune_trim[["STAD"]] %>%
+  dplyr::mutate(imm_cor = ifelse(imm_cor == "Lymphocyte Infiltration Signature Score", "Lymphocyte Infiltration", imm_cor)) %>%
+  dplyr::mutate(imm_cor = ifelse(imm_cor == "Homologous Recombination Defects", "Hom. Recombination Defects", imm_cor)) %>%
+  dplyr::filter(!imm_cor == "invsimpson") %>%
+  dplyr::filter(!imm_cor == "Fraction Altered") %>%
+  dplyr::filter(!imm_cor == "Number of Segments") %>%
+  dplyr::select(imm_cor, genus, estimate) %>%
+  pivot_wider(names_from = imm_cor, values_from = estimate) %>%
+    rowwise %>% 
+    mutate(variance = c_across(-genus) %>% var()) %>% 
+    ungroup() %>% 
+    slice_max(n = 100, order_by = variance) %>%
+    dplyr::select(-variance) %>%
+    as.data.frame() %>%
+    column_to_rownames(var = "genus") %>%
+    as.matrix() %>%
+    Heatmap(., name = "Scaled\nSpearman\ncorrelation")
+
+SKCM <- genus_spearman_immune_trim[["SKCM"]] %>%
+  dplyr::mutate(imm_cor = ifelse(imm_cor == "Lymphocyte Infiltration Signature Score", "Lymphocyte Infiltration", imm_cor)) %>%
+  dplyr::mutate(imm_cor = ifelse(imm_cor == "Homologous Recombination Defects", "Hom. Recombination Defects", imm_cor)) %>%
+  dplyr::filter(!imm_cor == "invsimpson") %>%
+  dplyr::filter(!imm_cor == "Fraction Altered") %>%
+  dplyr::filter(!imm_cor == "Number of Segments") %>%
+  dplyr::select(imm_cor, genus, estimate) %>%
+  pivot_wider(names_from = imm_cor, values_from = estimate) %>%
+    rowwise %>% 
+    mutate(variance = c_across(-genus) %>% var()) %>% 
+    ungroup() %>% 
+    slice_max(n = 100, order_by = variance) %>%
+    dplyr::select(-variance) %>%
+    as.data.frame() %>%
+    column_to_rownames(var = "genus") %>%
+    as.matrix() %>%
+    Heatmap(., name = "Scaled\nSpearman\ncorrelation")
+```
+
+```{r}
+### Top immune correlates for selected genera
+genus_select_spearman_barplots <- genus_spearman_immune_select %>% 
+  map(~ dplyr::filter(., genus %in% c("Bacillus", 
+                                      "Aerococcus", 
+                                      "Enterocloster", 
+                                      "Corynebacterium", 
+                                      "Prevotella", 
+                                      "Helicobacter"))) %>%
+  map(~ ggplot(., aes(y = estimate, x = as.factor(imm_cor), fill = genus)) + 
+        geom_bar(stat = "identity", position = position_dodge()) +
+        theme_minimal() +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+        ylab("Spearman correlation") +
+        xlab("")
+      )
+
+# save plots
+for (bp in names(genus_select_spearman_barplots)){
+  p <- genus_select_spearman_barplots[[bp]] + ggtitle(bp)
+  png(paste0("plots/select_barplot_", bp, ".png"), 
+      width = 12, 
+      height = 5, 
+      units = "in", res = 200)
+  print(p)
+  dev.off()
+}
 ```
 
 #### Genera that differed most between melanoma responders and nonresponders
 ```{r}
+# get dataframe of raw counts and immune correlates for plotting
 sel_gen <- c("Bacillus", "Aerococcus", "Enterocloster", "Corynebacterium", "Prevotella", "Helicobacter")
 
+imm_correlates <- unified_list %>%
+  enframe() %>%
+  unnest(value) %>%
+  select(one_of("name", (colnames(genus_analysis_list$imm_cor[[1]])))) %>%
+  dplyr::rename(tcga_proj = name) %>%
+  print()
+  
+selected_genera <- unified_list %>%
+  enframe() %>%
+  unnest(value) %>%
+  select(one_of(c("name", "tcga_barcode", sel_gen))) %>%
+  dplyr::rename(tcga_proj = name) %>%
+  dplyr::select(tcga_proj, tcga_barcode, one_of(sel_gen)) %>%
+  pivot_longer(one_of(sel_gen)) %>%
+  dplyr::rename(cpm = value, genus = name) %>%
+  dplyr::mutate(tcga_proj = as.factor(tcga_proj)) %>%
+  print()
 
+abundance_plot <- selected_genera %>%
+  ggplot(aes(y = cpm, x = tcga_proj, fill = genus)) +
+    geom_bar(stat = "identity", position = position_dodge()) +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    xlab("") +
+    ggtitle("Abundances of selected genera")
+abundance_plot
+
+log_abundance_plot <- selected_genera %>%
+  ggplot(aes(y = log(cpm), x = tcga_proj, fill = genus)) +
+    geom_violin() +
+    theme_minimal() +
+    theme(axis.text.x = element_text(angle = 90)) +
+    xlab("") +
+    ggtitle("Abundances of selected genera") +
+    ylim(0, 18)
+log_abundance_plot
+
+skcm_gen_cors <- selected_genera %>%
+  left_join(imm_correlates) %>% 
+  # remove projects with too much missing data
+  dplyr::filter(tcga_proj == "SKCM") %>%
+  print()
+
+# get most significant correlations for the selected genera
+sig_cor <- genus_pearson_immune_trim %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  dplyr::filter(genus %in% sel_gen) %>%
+  dplyr::filter(tcga_proj == "SKCM") %>%
+  arrange(p_adj_fdr) %>%
+  print()
+
+# plots
+ggplot(skcm_gen_cors, aes(x = Enterocloster, y = `IFN-gamma Response`)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("SKCM genus cpm vs immune correlate score") +
+  annotate("text", x = 50000, y = 2.5, label = "p.adj = 1.27e-7") +
+  theme_minimal() 
+
+ggplot(skcm_gen_cors, aes(x = Enterocloster, y = `TCR Richness`)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("SKCM genus cpm vs immune correlate score") +
+  annotate("text", x = 50000, y = 60, label = "p.adj = 1.82e-07") +
+  theme_minimal() 
+
+ggplot(skcm_gen_cors, aes(x = Enterocloster, y = `Lymphocyte Infiltration Signature Score`)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("SKCM genus cpm vs immune correlate score") +
+  annotate("text", x = 50000, y = 2.5, label = "p.adj = 2.62e-06") +
+  theme_minimal() 
+
+ggplot(skcm_gen_cors, aes(x = Enterocloster, y = `TCR Shannon`)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("SKCM genus cpm vs immune correlate score") +
+  annotate("text", x = 50000, y = 5, label = "p.adj = 5.08e-06") +
+  theme_minimal() 
+
+ggplot(skcm_gen_cors, aes(x = Enterocloster, y = `Macrophage Regulation`)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("SKCM genus cpm vs immune correlate score") +
+  annotate("text", x = 50000, y = 1.2, label = "p.adj = 8.15e-06") +
+  theme_minimal() 
+
+ggplot(skcm_gen_cors, aes(x = Enterocloster, y = `T Cells CD8`)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red") +
+  ggtitle("SKCM genus cpm vs immune correlate score") +
+  annotate("text", x = 50000, y = 0.5, label = "p.adj = 1.43e-03") +
+  theme_minimal() 
 ```
 
 #### Scatterplots for immune correlates  
@@ -646,6 +1061,131 @@ tgf_beta_vs_orthopoxvirus <- tgf_beta %>%
   
 tgf_beta_vs_orthopoxvirus
 ```
+
+
+
+## Clinical Outcomes
+
+#### Clinical and immune variables modeled on genera
+
+```{r}
+
+# make list of clinical data
+clindat_list <- genus_analysis_list$clindat
+
+# ovarian cancer clinical data uses figo instead of AJCC staging
+# infer nodal and metastatic status from figo staging
+clindat_ov <- clindat_list[["OV"]] %>%
+  mutate(ajcc_pathologic_t = rep(NA, nrow(.))) %>%
+  mutate(ajcc_pathologic_n = ifelse(
+    figo_stage %in% c("Stage IIIA", "Stage IIIB", "Stage IIIC", "Stage IVA", "Stage IVB"),
+    1, 
+    ifelse(is.na(figo_stage), NA, 0))) %>% 
+  mutate(ajcc_pathologic_m = ifelse(
+    figo_stage %in% c("Stage IVA", "Stage IVB"),
+    1,
+    ifelse(is.na(figo_stage), NA, 0))) %>%
+  dplyr::select(figo_stage, ajcc_pathologic_t, ajcc_pathologic_n, ajcc_pathologic_m, everything()) 
+
+# add repaired dataframe back to list
+clindat_list[["OV"]] <- clindat_ov
+
+# some tumors missing ajcc_pathologic_m and other tumor variables
+# remove from list for now, will attempt repair later
+clindat_list[["PCPG"]] <- NULL
+clindat_list[["THYM"]] <- NULL
+clindat_list[["UCS"]] <- NULL
+clindat_list[["SARC"]] <- NULL
+
+# function to make dataframe for clinical data
+# all outcomes defined as binary (0/1) outcome
+outcomes_cleaner <- function(clindat){
+  # examine only primary tumors
+  clindat_prime <- clindat %>%
+    dplyr::filter(sample_type == "Primary Tumor")
+  # define binary survival outcome variables
+  surv_cols <- clindat_prime %>% 
+    # examine only primary tumors
+    dplyr::filter(sample_type == "Primary Tumor") %>%
+    dplyr::select(tcga_barcode, days_to_death, days_to_last_follow_up) %>%
+    mutate(
+      os_status = ifelse(is.na(days_to_death), 0, 1)
+      ) %>%
+    mutate(
+      os_days = ifelse(os_status == 1, days_to_death, days_to_last_follow_up)
+      ) %>%
+    dplyr::select(tcga_barcode, os_status, os_days) %>%
+    mutate(
+      twoyr_os_status = ifelse(os_status == 0, 0,
+                              ifelse(os_days > 730, 0, 1))
+      ) %>%
+    mutate(
+      fiveyr_os_status = ifelse(os_status == 0, 0,
+                               ifelse(os_days > 1826, 0, 1))
+      ) %>%
+    dplyr::select(tcga_barcode, 
+                  twoyr_os_status, 
+                  fiveyr_os_status)
+  # binary demographics variables
+  demo_cols <- clindat_prime %>%
+    dplyr::select(tcga_barcode, gender, age_at_index, race) %>%
+    mutate(
+      female_sex = ifelse(gender == "female", 1,
+                          ifelse(is.na(gender), NA, 1))
+      ) %>%
+    mutate(
+      older_adult = ifelse(age_at_index > 65, 1,
+                           ifelse(is.na(age_at_index), NA, 1))
+      ) %>%
+    mutate(
+      nonwhite_race = ifelse(race == "white", 0, 
+                            ifelse(is.na(race), NA, 1))
+      ) %>%
+    dplyr::select(tcga_barcode, female_sex, older_adult, nonwhite_race) 
+  # binary tumor variables
+  tumor_cols <- clindat_prime %>%
+    dplyr::select(tcga_barcode, 
+                  tumor_stage, 
+                  ajcc_pathologic_t,
+                  ajcc_pathologic_m,
+                  ajcc_pathologic_n) %>%
+    mutate(
+      stage_iv = ifelse(grepl("iv", tumor_stage), 1,
+                          ifelse(tumor_stage == "not reported", NA, 
+                                        ifelse(is.na(tumor_stage), NA, 1)))
+           ) %>%
+    mutate(
+      t4 = ifelse(grepl("4", ajcc_pathologic_t), 1,
+                          ifelse(ajcc_pathologic_t == "TX", NA,
+                                        ifelse(is.na(ajcc_pathologic_t), NA, 1)))
+    ) %>%
+    mutate(
+      metastatic = ifelse(ajcc_pathologic_m == "M1", 1, 
+                          ifelse(ajcc_pathologic_m == "MX", NA,
+                                        ifelse(is.na(ajcc_pathologic_m), NA, 1)))
+    ) %>%
+    mutate(
+      nodal_involvement = ifelse(ajcc_pathologic_n == "N0", 0,
+                                 ifelse(ajcc_pathologic_n == "NX", NA, 
+                                        ifelse(is.na(ajcc_pathologic_n), NA, 1)))
+    ) %>%
+    dplyr::select(tcga_barcode, stage_iv, t4, metastatic, nodal_involvement)
+  surv_cols %>%
+    left_join(demo_cols) %>%
+    left_join(tumor_cols)
+}
+  
+outcomes_data <- map(clindat_list, outcomes_cleaner)
+  
+```
+
+Interesting nonbinary clinical variables:
+* primary_diagnosis
+* tissue_or_organ_of_origin
+* site_of_resection_or_surgery
+
+
+
 
 ## PCA plots
 ```{r}
@@ -799,117 +1339,4 @@ twoyr_varimp_plot
 ```
 
 
-## Clinical Outcomes
 
-#### Clinical and immune variables modeled on genera
-
-```{r}
-# testing variable
-clindat <- STAD_clindat
-
-# make list of clinical data
-clindat_list <- genus_analysis_list$clindat
-
-# ovarian cancer clinical data uses figo instead of AJCC staging
-# infer nodal and metastatic status from figo staging
-clindat_ov <- clindat_list[["OV"]] %>%
-  mutate(ajcc_pathologic_t = rep(NA, nrow(.))) %>%
-  mutate(ajcc_pathologic_n = ifelse(
-    figo_stage %in% c("Stage IIIA", "Stage IIIB", "Stage IIIC", "Stage IVA", "Stage IVB"),
-    1, 
-    ifelse(is.na(figo_stage), NA, 0))) %>% 
-  mutate(ajcc_pathologic_m = ifelse(
-    figo_stage %in% c("Stage IVA", "Stage IVB"),
-    1,
-    ifelse(is.na(figo_stage), NA, 0))) %>%
-  dplyr::select(figo_stage, ajcc_pathologic_t, ajcc_pathologic_n, ajcc_pathologic_m, everything()) 
-
-# add repaired dataframe back to list
-clindat_list[["OV"]] <- clindat_ov
-  
-# function to make dataframe for clinical data
-# all outcomes defined as binary (0/1) outcome
-outcomes_cleaner <- function(clindat){
-  # examine only primary tumors
-  clindat_prime <- clindat %>%
-    dplyr::filter(sample_type == "Primary Tumor")
-  # define binary survival outcome variables
-  surv_cols <- clindat_prime %>% 
-    # examine only primary tumors
-    dplyr::filter(sample_type == "Primary Tumor") %>%
-    dplyr::select(tcga_barcode, days_to_death, days_to_last_follow_up) %>%
-    mutate(
-      os_status = ifelse(is.na(days_to_death), 0, 1)
-      ) %>%
-    mutate(
-      os_days = ifelse(os_status == 1, days_to_death, days_to_last_follow_up)
-      ) %>%
-    dplyr::select(tcga_barcode, os_status, os_days) %>%
-    mutate(
-      twoyr_os_status = ifelse(os_status == 0, 0,
-                              ifelse(os_days > 730, 0, 1))
-      ) %>%
-    mutate(
-      fiveyr_os_status = ifelse(os_status == 0, 0,
-                               ifelse(os_days > 1826, 0, 1))
-      ) %>%
-    dplyr::select(tcga_barcode, 
-                  twoyr_os_status, 
-                  fiveyr_os_status)
-  # binary demographics variables
-  demo_cols <- clindat_prime %>%
-    dplyr::select(tcga_barcode, gender, age_at_index, race) %>%
-    mutate(
-      female_sex = ifelse(gender == "female", 1,
-                          ifelse(is.na(gender), NA, 1))
-      ) %>%
-    mutate(
-      older_adult = ifelse(age_at_index > 65, 1,
-                           ifelse(is.na(age_at_index), NA, 1))
-      ) %>%
-    mutate(
-      nonwhite_race = ifelse(race == "white", 0, 
-                            ifelse(is.na(race), NA, 1))
-      ) %>%
-    dplyr::select(tcga_barcode, female_sex, older_adult, nonwhite_race) 
-  # binary tumor variables
-  tumor_cols <- clindat_prime %>%
-    dplyr::select(tcga_barcode, 
-                  tumor_stage, 
-                  ajcc_pathologic_t,
-                  ajcc_pathologic_m,
-                  ajcc_pathologic_n) %>%
-    mutate(
-      stage_iv = ifelse(grepl("iv", tumor_stage), 1,
-                          ifelse(tumor_stage == "not reported", NA, 
-                                        ifelse(is.na(tumor_stage), NA, 1)))
-           ) %>%
-    mutate(
-      t4 = ifelse(grepl("4", ajcc_pathologic_t), 1,
-                          ifelse(ajcc_pathologic_t == "TX", NA,
-                                        ifelse(is.na(ajcc_pathologic_t), NA, 1)))
-    ) %>%
-    mutate(
-      metastatic = ifelse(ajcc_pathologic_m == "M1", 1, 
-                          ifelse(ajcc_pathologic_m == "MX", NA,
-                                        ifelse(is.na(ajcc_pathologic_m), NA, 1)))
-    ) %>%
-    mutate(
-      nodal_involvement = ifelse(ajcc_pathologic_n == "N0", 0,
-                                 ifelse(ajcc_pathologic_n == "NX", NA, 
-                                        ifelse(is.na(ajcc_pathologic_n), NA, 1)))
-    ) %>%
-    dplyr::select(tcga_barcode, stage_iv, t4, metastatic, nodal_involvement)
-  surv_cols %>%
-    left_join(demo_cols) %>%
-    left_join(tumor_cols)
-}
-  
-outcomes_data <- map(clindat_list, outcomes_cleaner)
-  
-```
-
-Interesting nonbinary clinical variables:
-* primary_diagnosis
-* tissue_or_organ_of_origin
-* site_of_resection_or_surgery
