@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Michael Leukam" />
+
+<meta name="date" content="2021-02-02" />
+
+<title>tcga_data_prep</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/anchor-sections-1.0/anchor-sections.css" rel="stylesheet" />
+<script src="site_libs/anchor-sections-1.0/anchor-sections.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/master/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">tcga_micro</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/mleukam/tcga_micro">
+    <span class="fa fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">tcga_data_prep</h1>
+<h4 class="author">Michael Leukam</h4>
+<h4 class="date">2021-02-02</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span> workflowr <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> </a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2021-02-03
+</p>
+<p>
+<strong>Checks:</strong> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 6 <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> 1
+</p>
+<p>
+<strong>Knit directory:</strong> <code>tcga_micro/</code> <span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed."> </span>
+</p>
+<p>
+This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis was created with <a
+  href="https://github.com/jdblischak/workflowr">workflowr</a> (version 1.6.2). The <em>Checks</em> tab describes the reproducibility checks that were applied when the results were created. The <em>Past versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div class="panel-group" id="workflowr-checks">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date </a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git repository, you know the exact version of the code that produced these results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the global environment can affect the analysis in your R Markdown file in unknown ways. For reproduciblity it’s best to always run the code in an empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20201014code"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Seed:</strong> <code>set.seed(20201014)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20201014code" class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20201014)</code> was run prior to running the code in the R Markdown file. Setting a seed ensures that any results that rely on randomness, e.g. subsampling or permutations, are reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Session information:</strong> recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be confident that you successfully produced the results during this run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongabsolute"> <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> <strong>File paths:</strong> absolute </a>
+</p>
+</div>
+<div id="strongFilepathsstrongabsolute" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Using absolute paths to the files within your workflowr project makes it difficult for you and others to run your code on a different machine. Change the absolute path(s) below to the suggested relative path(s) to make your code more reproducible.
+</p>
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th style="text-align:left;">
+absolute
+</th>
+<th style="text-align:left;">
+relative
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+~/Projects/tcga_micro/data/imm_cor_souce.tsv
+</td>
+<td style="text-align:left;">
+data/imm_cor_souce.tsv
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+~/Projects/tcga_micro/data/tcga_counts_list_mode2.rds
+</td>
+<td style="text-align:left;">
+data/tcga_counts_list_mode2.rds
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+~/Projects/tcga_micro
+</td>
+<td style="text-align:left;">
+.
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreeee33bd851a58ce508a5c71b313d5308d65025d8dtargetblankee33bd8a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/ee33bd851a58ce508a5c71b313d5308d65025d8d" target="_blank">ee33bd8</a> </a>
+</p>
+</div>
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreeee33bd851a58ce508a5c71b313d5308d65025d8dtargetblankee33bd8a" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/ee33bd851a58ce508a5c71b313d5308d65025d8d" target="_blank">ee33bd8</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .DS_Store
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    corrected_genus_cpm_expressionset.rds
+    Ignored:    data/2021_01_11_readcounts.csv
+    Ignored:    data/2021_01_20_readcounts.csv
+    Ignored:    data/africa_metadata.csv
+    Ignored:    data/africa_mode1.csv
+    Ignored:    data/genus_analysis_list.rds
+    Ignored:    data/imm_cor_souce.tsv
+    Ignored:    data/mode2_tcga_counts_list.rds
+    Ignored:    data/mode2_tcga_counts_list_clean.rds
+    Ignored:    data/tcga_counts_list_mode2.rds
+    Ignored:    data/tcga_proj_taxonomy.csv
+    Ignored:    data/tcga_proj_taxonomy.rds
+    Ignored:    data/tcga_proj_taxonomy_nomissing.csv
+    Ignored:    data/tcga_proj_taxonomy_nomissing.rds
+    Ignored:    data/totreads_list_backup.rds
+    Ignored:    data/totreads_list_mode2.rds
+    Ignored:    output/.DS_Store
+    Ignored:    output/africa/
+    Ignored:    output/display_genus_immune_correlations_pearson.xlsx
+    Ignored:    output/display_genus_immune_correlations_spearman.xlsx
+    Ignored:    output/display_genus_summary_correlations_spearman.xlsx
+    Ignored:    output/draft_mode2_clindat.csv
+    Ignored:    output/draft_mode2_counts_rowformat.csv
+    Ignored:    output/genus_immune_correlations_pearson.rds
+    Ignored:    output/genus_immune_correlations_spearman.rds
+    Ignored:    output/genus_sumvar_correlations_pearson.rds
+    Ignored:    output/genus_sumvar_correlations_spearman.rds
+    Ignored:    output/global_high_level_correlations.csv
+    Ignored:    output/mode2_counts_columnformat_draft.csv
+    Ignored:    output/plots/
+    Ignored:    output/tcga_batchcorrected_correlations_pearson.xlsx
+    Ignored:    output/tcga_batchcorrected_correlations_spearman.xlsx
+    Ignored:    output/tcga_correlations_pearson.xlsx
+    Ignored:    output/tcga_correlations_spearman.xlsx
+    Ignored:    output/tcga_global_batchcorrected_correlations_spearman.xlsx
+
+Untracked files:
+    Untracked:  analysis/africa_csf.Rmd
+    Untracked:  code/get_reads_v2.sh
+
+Unstaged changes:
+    Modified:   analysis/derive_vars.Rmd
+    Modified:   analysis/genus_models.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were made to the R Markdown (<code>analysis/tcga_data_prep.Rmd</code>) and HTML (<code>docs/tcga_data_prep.html</code>) files. If you’ve configured a remote Git repository (see <code>?wflow_git_remote</code>), click on the hyperlinks in the table below to view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/ee33bd851a58ce508a5c71b313d5308d65025d8d/analysis/tcga_data_prep.Rmd" target="_blank">ee33bd8</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+working code for initial data cleaning
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/9bc98f0a56aa79f48267cc5c1163accb7afbd9e3/analysis/tcga_data_prep.Rmd" target="_blank">9bc98f0</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-21
+</td>
+<td>
+updates with cpm
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/9ea4930c6ad79634770abbaae9d0f879715cf61a/analysis/tcga_data_prep.Rmd" target="_blank">9ea4930</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-20
+</td>
+<td>
+updates to include kingdown and phylum data
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/6162be468238d0fc50bd2cd17d50111a17ab99cb/analysis/tcga_data_prep.Rmd" target="_blank">6162be4</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-14
+</td>
+<td>
+initial commit
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<p>Clear the workspace and set seed</p>
+<pre class="r"><code>rm(list=ls())
+set.seed(818)</code></pre>
+<p>Load packages</p>
+<pre class="r"><code># data cleaning
+library(tidyverse)</code></pre>
+<pre><code>Warning: package &#39;tidyverse&#39; was built under R version 4.0.2</code></pre>
+<pre><code>── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──</code></pre>
+<pre><code>✓ ggplot2 3.3.2     ✓ purrr   0.3.4
+✓ tibble  3.0.4     ✓ dplyr   1.0.2
+✓ tidyr   1.1.2     ✓ stringr 1.4.0
+✓ readr   1.4.0     ✓ forcats 0.5.0</code></pre>
+<pre><code>Warning: package &#39;tibble&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Warning: package &#39;tidyr&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Warning: package &#39;readr&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Warning: package &#39;dplyr&#39; was built under R version 4.0.2</code></pre>
+<pre><code>── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+x dplyr::filter() masks stats::filter()
+x dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(Biobase)</code></pre>
+<pre><code>Loading required package: BiocGenerics</code></pre>
+<pre><code>Loading required package: parallel</code></pre>
+<pre><code>
+Attaching package: &#39;BiocGenerics&#39;</code></pre>
+<pre><code>The following objects are masked from &#39;package:parallel&#39;:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB</code></pre>
+<pre><code>The following objects are masked from &#39;package:dplyr&#39;:
+
+    combine, intersect, setdiff, union</code></pre>
+<pre><code>The following objects are masked from &#39;package:stats&#39;:
+
+    IQR, mad, sd, var, xtabs</code></pre>
+<pre><code>The following objects are masked from &#39;package:base&#39;:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
+    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
+    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
+    union, unique, unsplit, which, which.max, which.min</code></pre>
+<pre><code>Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    &#39;browseVignettes()&#39;. To cite Bioconductor, see
+    &#39;citation(&quot;Biobase&quot;)&#39;, and for packages &#39;citation(&quot;pkgname&quot;)&#39;.</code></pre>
+<pre class="r"><code>library(Matrix.utils)</code></pre>
+<pre><code>Warning: package &#39;Matrix.utils&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Loading required package: Matrix</code></pre>
+<pre><code>
+Attaching package: &#39;Matrix&#39;</code></pre>
+<pre><code>The following objects are masked from &#39;package:tidyr&#39;:
+
+    expand, pack, unpack</code></pre>
+<pre class="r"><code>library(limma)</code></pre>
+<pre><code>
+Attaching package: &#39;limma&#39;</code></pre>
+<pre><code>The following object is masked from &#39;package:BiocGenerics&#39;:
+
+    plotMA</code></pre>
+<pre class="r"><code>library(ggpubr)
+library(edgeR)</code></pre>
+<pre class="r"><code>knitr::opts_chunk$set(eval = FALSE)</code></pre>
+<p>Setup on local</p>
+<pre class="bash"><code>sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mjl62 ~/sshfs_mount/TCGA
+
+# get immune correlates
+cd ~/sshfs_mount/TCGA/agamemnon_counts
+
+curl https://contattafiles.s3.us-west-1.amazonaws.com/tnt40761/jOjcXzknipvEC1q/Characteristics.tsv &gt; IMM_correlates.tsv</code></pre>
+</div>
+<div id="format-counts" class="section level2">
+<h2>Format counts</h2>
+<pre class="r"><code># READ IN--------------------------------------------
+setwd(&quot;~/sshfs_mount/TCGA/agamemnon_counts/mode2&quot;)
+
+# make list of TCGA projects
+tcga_proj &lt;- list(&quot;BRCA&quot; = &quot;BRCA&quot;,
+                  &quot;LUAD&quot; = &quot;LUAD&quot;,
+                  &quot;GBM&quot; = &quot;GBM&quot;,
+                  &quot;LUSC&quot; = &quot;LUSC&quot;,
+                  &quot;SKCM&quot; = &quot;SKCM&quot;,
+                  &quot;STAD&quot; = &quot;STAD&quot;,
+                  &quot;LGG&quot; = &quot;LGG&quot;,
+                  &quot;UCEC&quot; = &quot;UCEC&quot;,
+                  &quot;KIRC&quot; = &quot;KIRC&quot;,
+                  # &quot;LAML&quot; = &quot;LAML&quot;, no samples in this folder
+                  &quot;HNSC&quot; = &quot;HNSC&quot;,
+                  &quot;THCA&quot; = &quot;THCA&quot;)
+# second batch
+# tcga_proj &lt;- list(&quot;ACC&quot; = &quot;ACC&quot;,
+#                  &quot;BLCA&quot; = &quot;BLCA&quot;,
+#                  &quot;CESC&quot; = &quot;CESC&quot;,
+#                  &quot;COAD&quot; = &quot;COAD&quot;,
+#                  &quot;KICH&quot; = &quot;KICH&quot;,
+#                  &quot;KIRP&quot; = &quot;KIRP&quot;,
+#                  &quot;LAML&quot; = &quot;LAML&quot;,
+#                  &quot;LIHC&quot; = &quot;LIHC&quot;,
+#                  &quot;MESO&quot; = &quot;MESO&quot;,
+#                  &quot;PAAD&quot; = &quot;PAAD&quot;,
+#                  &quot;PCPG&quot; = &quot;PCPG&quot;,
+#                  &quot;PRAD&quot; = &quot;PRAD&quot;,
+#                  &quot;READ&quot; = &quot;READ&quot;,
+#                  &quot;SARC&quot; = &quot;SARC&quot;,
+#                  &quot;SKCM&quot; = &quot;SKCM&quot;,
+#                  &quot;STAD&quot; = &quot;STAD&quot;,
+#                  &quot;TGCT&quot; = &quot;TGCT&quot;,
+#                  &quot;THCA&quot; = &quot;THCA&quot;,
+#                  &quot;THYM&quot; = &quot;THYM&quot;,
+#                  &quot;UCS&quot; = &quot;UCS&quot;,
+#                  &quot;UVM&quot; = &quot;UVM&quot;)
+
+
+# function to read in data for each project
+file_loader &lt;- function(tcga_proj){
+  # assign path to data files
+  path_to_directory &lt;- &quot;~/sshfs_mount/TCGA/agamemnon_counts/mode2/&quot;
+  # read in genus counts
+  genus_counts &lt;- read_csv(
+  paste0(path_to_directory,
+         tcga_proj, &quot;_genus_counts.csv&quot;)
+  )
+   # read in species counts
+  species_counts &lt;- read_csv(
+  paste0(path_to_directory, 
+         tcga_proj, &quot;_species_counts.csv&quot;)
+  )
+   # read in taxid counts
+  taxid_counts &lt;- read_csv(
+    paste0(path_to_directory,
+           tcga_proj, &quot;_taxID_counts.csv&quot;)
+  )
+  # read in phylum counts
+  phylum_counts &lt;- read_csv(
+    paste0(path_to_directory,
+           tcga_proj, &quot;_phylum_counts.csv&quot;)
+  )
+  # read in kingdom counts
+  kingdom_counts &lt;- read_csv(
+    paste0(path_to_directory,
+           tcga_proj, &quot;_kingdom_counts.csv&quot;)
+  )
+  # read in clinical data
+  clindat &lt;- read_csv(
+    paste0(path_to_directory, 
+           tcga_proj, &quot;_clindata.csv&quot;)
+  ) %&gt;%
+    # keep only primary tumor data
+    dplyr::filter(sample_type == &quot;Primary Tumor&quot;) %&gt;%
+    # convert explicit attributes table to standard tbl
+    # honestly because it is annoying for str() calls
+    # and does not look pretty
+    select(everything())
+  # make counts tables into a list for batch processing
+  counts &lt;- list(genus_counts, 
+                 species_counts, 
+                 taxid_counts, 
+                 kingdom_counts, 
+                 phylum_counts)
+  names(counts) &lt;- c(&quot;genus&quot;, &quot;species&quot;, &quot;taxid&quot;, &quot;kingdom&quot;, &quot;phylum&quot;)
+  # return a list of counts (nested) and clinical data
+  combined_list &lt;- list(&quot;counts&quot; = counts, &quot;clindat&quot; = clindat)
+  combined_list
+}
+# apply function to list
+counts_clin_list &lt;- purrr::map(tcga_proj, file_loader)
+str(counts_clin_list, max.level = 2)
+
+# FIX ROWNAMES--------------------------------------------
+# function to convert file_ids to legacy TCGA barcodes
+# using conversion columns in clindata
+convert_to_barcodes &lt;- function(list_as_element){
+  clindat &lt;- list_as_element[[&quot;clindat&quot;]]
+  imm_cor &lt;- list_as_element[[&quot;imm_cor&quot;]]
+  
+  lookup_table &lt;- clindat %&gt;% dplyr::select(file_id, 
+                                            tcga_barcode, 
+                                            sample_type)
+  counts_tables &lt;- list_as_element[[&quot;counts&quot;]]
+  counts_barcodes &lt;- map(counts_tables, function(df){
+    mat &lt;- df[-1] %&gt;%
+      as.matrix()
+    rownames(mat) &lt;- df %&gt;% dplyr::pull(var = 1)
+    mat %&gt;%
+      t() %&gt;%
+      as.data.frame() %&gt;%
+      tibble::rownames_to_column(var = &quot;file_id&quot;) %&gt;%
+      tibble::as_tibble() %&gt;%
+      dplyr::left_join(lookup_table) %&gt;%
+      dplyr::select(file_id, tcga_barcode, sample_type, everything()) %&gt;%
+      # select only primary tumors for now
+      dplyr::filter(sample_type == &quot;Primary Tumor&quot;) %&gt;%
+      dplyr::select(-file_id, -sample_type)
+  })
+  list(&quot;genus&quot; = counts_barcodes[[&quot;genus&quot;]], 
+       &quot;species&quot; = counts_barcodes[[&quot;species&quot;]],
+       &quot;taxid&quot; = counts_barcodes[[&quot;taxid&quot;]],
+       &quot;kingdom&quot; = counts_barcodes[[&quot;kingdom&quot;]],
+       &quot;phylum&quot; = counts_barcodes[[&quot;phylum&quot;]],
+       &quot;clindat&quot; = clindat)
+}
+# apply function to list
+tcga_barcodes_list &lt;- purrr::map(counts_clin_list, convert_to_barcodes)
+str(tcga_barcodes_list, max.level = 2)
+
+# IMMUNE CORRELATES--------------------------------------------
+# read in locally saved copy
+imm_corr &lt;- read_tsv(&quot;~/Projects/tcga_micro/data/imm_cor_souce.tsv&quot;) %&gt;%
+  dplyr::select(tcga_barcode = `TCGA Participant Barcode`, everything())
+
+# make immune correlates list
+imm_corr_lister &lt;- function(tcga_proj){
+  imm_corr %&gt;% dplyr::filter(`TCGA Study` == tcga_proj)
+}
+imm_corr_list &lt;- purrr::map(tcga_proj, imm_corr_lister)
+
+# LISTS BY TYPE--------------------------------------------
+# functions to split lists by count types
+genera_lister &lt;- function(list_element){
+  genera &lt;- list_element[[&quot;genus&quot;]]
+genera
+}
+species_lister &lt;- function(list_element){
+  species &lt;- list_element[[&quot;species&quot;]]
+  species
+}
+taxid_lister &lt;- function(list_element){
+  taxid &lt;- list_element[[&quot;taxid&quot;]]
+  taxid
+}
+kingdom_lister &lt;- function(list_element){
+  kingdom &lt;- list_element[[&quot;kingdom&quot;]]
+  kingdom
+}
+phylum_lister &lt;- function(list_element){
+  phylum &lt;- list_element[[&quot;phylum&quot;]]
+  phylum
+}
+# apply functions to list
+genera_list &lt;- purrr::map(tcga_barcodes_list, genera_lister)
+species_list &lt;- purrr::map(tcga_barcodes_list, species_lister)
+taxid_list &lt;- purrr::map(tcga_barcodes_list, taxid_lister)
+phylum_list &lt;- purrr::map(tcga_barcodes_list, phylum_lister)
+kingdom_list &lt;- purrr::map(tcga_barcodes_list, kingdom_lister)
+
+# create nested list of counts
+counts_sublist &lt;- list(&quot;kingdom&quot; = kingdom_list,
+                       &quot;phylum&quot; = phylum_list,
+                       &quot;genus&quot; = genera_list,
+                       &quot;species&quot; = species_list, 
+                       &quot;taxid&quot; = taxid_list)
+
+# add in clinical data and immune correlates
+clindat_lister &lt;- function(list_element){
+  clindat &lt;- list_element[[&quot;clindat&quot;]]
+  clindat
+}
+clindat_list &lt;- purrr::map(tcga_barcodes_list, clindat_lister)
+
+tcga_counts &lt;- list(&quot;counts&quot; = counts_sublist,
+                    &quot;clindat&quot; = clindat_list,
+                    &quot;imm_cor&quot; = imm_corr_list)
+
+# SAVE FOR LATER USE---------------------------------------
+saveRDS(tcga_counts, &quot;~/Projects/tcga_micro/data/tcga_counts_list_mode2.rds&quot;)</code></pre>
+<p>Check integrity</p>
+<pre class="r"><code>tcga_counts &lt;- readRDS(&quot;~/Projects/tcga_micro/data/tcga_counts_list_mode2.rds&quot;)
+str(tcga_counts$counts, max.level = 2)
+str(tcga_counts, max.level = 2)
+tcga_counts$counts$genus$STAD
+# problem - Tissierella_Class is still called ---_Class
+tcga_counts$counts$genus &lt;- tcga_counts$counts$genus %&gt;% 
+  map(~ dplyr::rename(., Tissierella_Class = `---_Class`))
+tcga_counts$counts$genus$STAD
+tcga_counts$counts$species$STAD
+tcga_counts$counts$kingdom$STAD
+tcga_counts$counts$taxid$STAD</code></pre>
+</div>
+<div id="data-cleaning" class="section level2">
+<h2>Data Cleaning</h2>
+<div id="repair-missing-kingdomphylum-data" class="section level4">
+<h4>Repair missing kingdom/phylum data</h4>
+<pre class="r"><code>#### NOTE ####
+# This was done prior to collecting tables and DOES NOT need to be repeated
+# Originally written here and left for record keeping 
+setwd(&quot;~/Projects/tcga_micro&quot;)
+# read in phylogenetic tree from agamemnon
+taxonomy &lt;- read_csv(&quot;data/tcga_proj_taxonomy.csv&quot;)
+
+# make repars to missing data in taxonomy tree
+# if &quot;---&quot; is present, replace with reasonable substitute with flag
+# eg Anelloviridae_Family
+taxonomy_nomissing &lt;- taxonomy %&gt;%
+  # all missing superkingdom data are viruses (manual check)
+  # viruses are not classified in the same system as cellular life
+  # will use term &#39;virus&#39; for all viruses at superkingdom level
+  mutate(Superkingdom = ifelse(Superkingdom == &quot;---&quot;, &quot;Virus&quot;, Superkingdom)) %&gt;%
+  # if genus is missing, fill in with a higher level
+  mutate(Genus = 
+    ifelse((Genus == &quot;---&quot; &amp; Family != &quot;---&quot;), paste0(Family, &quot;_Family&quot;),
+      ifelse((Genus == &quot;---&quot; &amp; Order != &quot;---&quot;), paste0(Order, &quot;_Order&quot;),
+        ifelse((Genus == &quot;---&quot; &amp; Class != &quot;---&quot;), paste0(Class, &quot;_Class&quot;),
+          ifelse((Genus == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
+            ifelse((Genus == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
+            Genus)))))) %&gt;%
+  # if family is missing, fill in with a higher level
+  mutate(Family = 
+    ifelse((Family == &quot;---&quot; &amp; Order != &quot;---&quot;), paste0(Order, &quot;_Order&quot;),
+      ifelse((Family == &quot;---&quot; &amp; Class != &quot;---&quot;), paste0(Class, &quot;_Class&quot;),
+        ifelse((Family == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
+          ifelse((Family == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
+          Family))))) %&gt;%
+  # if order is missing, fill in with a higher level
+  mutate(Order = 
+      ifelse((Order == &quot;---&quot; &amp; Class != &quot;---&quot;), paste0(Class, &quot;_Class&quot;),
+        ifelse((Order == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
+          ifelse((Order == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
+          Order)))) %&gt;%
+  # if class is missing, fill in with a higher level
+  mutate(Class = 
+      ifelse((Class == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
+        ifelse((Class == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
+          Class))) %&gt;%
+  # if phylum is missing, fill in with a higher level
+  mutate(Phylum = 
+      ifelse((Phylum == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
+          Phylum)) 
+
+# save copy
+taxonomy_nomissing %&gt;% saveRDS(&quot;data/tcga_proj_taxonomy_nomissing.rds&quot;)
+taxonomy_nomissing %&gt;% write_csv(&quot;data/tcga_proj_taxonomy_nomissing.csv&quot;)</code></pre>
+</div>
+<div id="convert-to-cpm" class="section level4">
+<h4>Convert to CPM</h4>
+<p><a href="https://rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/#" class="uri">https://rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/#</a>:~:text=Count%20up%20the%20total%20reads,of%20the%20gene%2C%20in%20kilobases.</p>
+<pre class="r"><code>setwd(&quot;~/Projects/tcga_micro&quot;)
+# read in readcounts from /code/get_reads_v2.sh
+# moved over from HPC to data folder using filezilla
+totreads_tbl &lt;- read_csv(&quot;data/2021_01_20_readcounts.csv&quot;, col_names = FALSE) %&gt;%
+  dplyr::rename(tcga_proj = X1,
+                file_id = X2,
+                totreads = X3) %&gt;%
+  # STAD results were stored in folder named &quot;STAD_mode2&quot;
+  # need to fix project names
+  # remove leftover old STAD values
+  dplyr::filter(!tcga_proj == &quot;TCGA_STAD&quot;) %&gt;%
+  # remove `TCGA_` prefix from projects and _mode2 suffix
+  separate(tcga_proj, into = c(NA, &quot;tcga_proj&quot;, NA), sep = &quot;_&quot;, ) %&gt;%
+  print()
+  
+summary(as.factor(totreads_tbl$tcga_proj))
+
+# add total reads to clinical data using file_id
+clindat_tbl_list &lt;- tcga_counts$clindat %&gt;%
+  enframe %&gt;%
+  unnest(value) %&gt;%
+  left_join(totreads_tbl, by = &quot;file_id&quot;) %&gt;%
+  dplyr::select(name, tcga_barcode, totreads, everything()) %&gt;%
+  group_by(name) %&gt;%
+  nest() %&gt;%
+  deframe()
+str(clindat_tbl_list, max.level = 1)
+clindat_tbl_list[1]
+
+# make simplified lookup table
+reads_lookup &lt;- clindat_tbl_list %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  dplyr::select(tcga_barcode, totreads) %&gt;%
+  print()
+
+# genus CPM conversion
+genusflat &lt;- tcga_counts$counts$genus %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  left_join(reads_lookup) %&gt;%
+  dplyr::select(name, tcga_barcode, totreads, everything()) %&gt;%
+  # take out those lacking total reads data
+  dplyr::filter(!is.na(totreads)) %&gt;%
+  print()
+genus_cpm &lt;- genusflat %&gt;%
+  # get per million scaling factor
+  mutate(factor = totreads / 10^6) %&gt;%
+  select(-totreads) %&gt;%
+  # divide by readcounts
+  mutate(across(-c(factor, name, tcga_barcode), ~ . / factor)) %&gt;%
+  dplyr::select(-factor) %&gt;%
+  group_by(name) %&gt;%
+  nest() %&gt;%
+  deframe()
+
+# species
+speciesflat &lt;- tcga_counts$counts$species %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  left_join(reads_lookup) %&gt;%
+  dplyr::select(name, tcga_barcode, totreads, everything()) %&gt;%
+  # take out those lacking total reads data
+  dplyr::filter(!is.na(totreads)) %&gt;%
+  print()
+species_cpm &lt;- speciesflat %&gt;%
+  # get per million scaling factor
+  mutate(factor = totreads / 10^6) %&gt;%
+  select(-totreads) %&gt;%
+  # divide by readcounts
+  mutate(across(-c(factor, name, tcga_barcode), ~ . / factor)) %&gt;%
+  dplyr::select(-factor) %&gt;%
+  group_by(name) %&gt;%
+  nest() %&gt;%
+  deframe()
+
+# phylum
+phylumflat &lt;- tcga_counts$counts$phylum %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  left_join(reads_lookup) %&gt;%
+  dplyr::select(name, tcga_barcode, totreads, everything()) %&gt;%
+  # take out those lacking total reads data
+  dplyr::filter(!is.na(totreads)) %&gt;%
+  print()
+phylum_cpm &lt;- phylumflat %&gt;%
+  # get per million scaling factor
+  mutate(factor = totreads / 10^6) %&gt;%
+  select(-totreads) %&gt;%
+  # divide by readcounts
+  mutate(across(-c(factor, name, tcga_barcode), ~ . / factor)) %&gt;%
+  dplyr::select(-factor) %&gt;%
+  group_by(name) %&gt;%
+  nest() %&gt;%
+  deframe()
+
+# taxid
+taxidflat &lt;- tcga_counts$counts$taxid %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  left_join(reads_lookup) %&gt;%
+  dplyr::select(name, tcga_barcode, totreads, everything()) %&gt;%
+  # take out those lacking total reads data
+  dplyr::filter(!is.na(totreads)) %&gt;%
+  print()
+taxid_cpm &lt;- taxidflat %&gt;%
+  # get per million scaling factor
+  mutate(factor = totreads / 10^6) %&gt;%
+  select(-totreads) %&gt;%
+  # divide by scaling factor
+  mutate(across(-c(factor, name, tcga_barcode), ~ . / factor)) %&gt;%
+  dplyr::select(-factor) %&gt;%
+  group_by(name) %&gt;%
+  nest() %&gt;%
+  deframe()
+taxid_cpm
+
+kingdomflat &lt;- tcga_counts$counts$kingdom %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  left_join(reads_lookup) %&gt;%
+  dplyr::select(name, tcga_barcode, totreads, everything()) %&gt;%
+  # dplyr::select(-`NA`) %&gt;%
+  # take out those lacking total reads data
+  dplyr::filter(!is.na(totreads)) %&gt;%
+  print()
+kingdom_cpm &lt;- kingdomflat %&gt;%
+  # get per million scaling factor
+  mutate(factor = totreads / 10^6) %&gt;%
+  select(-totreads) %&gt;%
+  # divide by scaling factor
+  mutate(across(-c(factor, name, tcga_barcode), ~ . / factor)) %&gt;%
+  dplyr::select(-factor) %&gt;%
+  group_by(name) %&gt;%
+  nest() %&gt;%
+  deframe()
+kingdom_cpm
+
+cpm_counts &lt;- list(&quot;kingdom_cpm&quot; = kingdom_cpm, 
+                   &quot;phylum_cpm&quot; = phylum_cpm, 
+                   &quot;genus_cpm&quot; = genus_cpm, 
+                   &quot;species_cpm&quot; = species_cpm, 
+                   &quot;taxid_cpm&quot; = taxid_cpm,
+                   &quot;cpm_clindat&quot; = clindat_tbl_list)
+
+tcga_counts[[&quot;cpm_counts&quot;]] &lt;- cpm_counts
+
+str(tcga_counts, max.level = 2)
+
+saveRDS(tcga_counts, &quot;data/mode2_tcga_counts_list_clean.rds&quot;)</code></pre>
+</div>
+</div>
+<div id="alt-start-batch-correction" class="section level2">
+<h2>ALT START Batch Correction</h2>
+<p>From the manual for limma::removeBatchEffect:</p>
+<p>This function is useful for removing batch effects, associated with hybridization time or other technical variables, prior to clustering or unsupervised analysis such as PCA, MDS or heatmaps. It is not intended to use with linear modelling. For linear modelling, it is better to include the batch factors in the linear model.</p>
+<p>The design matrix is used to describe comparisons between the samples, for example treatment effects, which should not be removed.</p>
+<p>The function (in effect) fits a linear model to the data, including both batches and regular treatments, then removes the component due to the batch effects.</p>
+<p>The data object x can be of any class for which lmFit works. If x contains weights, then these will be used in estimating the batch effects.</p>
+<pre class="r"><code>tcga_counts &lt;- readRDS(&quot;data/mode2_tcga_counts_list_clean.rds&quot;)
+str(tcga_counts, max.level = 2)
+str(tcga_counts$cpm_counts, max.level = 2)
+
+# pull out CPM counts
+cpm_list &lt;- tcga_counts$cpm_counts
+str(cpm_list, max.level = 2)
+
+# get linked clinical data to set up limma model
+# convert to dataframe with subjects in rows
+cpm_clindat &lt;- tcga_counts$cpm_counts$cpm_clindat %&gt;%
+  # collapse list to single tbl
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  # remove duplicates (very few)
+  distinct(tcga_barcode, .keep_all = TRUE) %&gt;%
+  # create variable for plate and center == batch
+  separate(tcga_full_barcode, 
+           into = c(NA, NA, NA, NA, NA, &quot;plate&quot;, &quot;center&quot;), 
+           sep = &quot;-&quot;, 
+           remove = FALSE) %&gt;%
+  unite(&quot;batch&quot;, 
+        c(&quot;plate&quot;, &quot;center&quot;), 
+        sep = &quot;&quot;, 
+        remove = FALSE) %&gt;%
+  # convert to df with rownames
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
+  print()</code></pre>
+<div id="genus" class="section level4">
+<h4>Genus</h4>
+<pre class="r"><code># start with genus as code test
+# get counts to set up limma model
+genus_cpm &lt;- cpm_list$genus_cpm %&gt;%
+  # collapse list to single tbl
+  bind_rows() %&gt;%
+  # remove duplicates (very few, about 30)
+  distinct(tcga_barcode, .keep_all = TRUE) %&gt;%
+  # convert to matrix and rotate
+  # cases are in columns and features are in rows
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
+  as.matrix() %&gt;%
+  t() 
+
+# check results
+dim(genus_cpm)
+genus_cpm[1:5, 1:5]
+
+# repair clinical data to match genus cpm
+clindat_genus_tbl &lt;- cpm_clindat %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble()
+clindat_genus_cpm &lt;- enframe(colnames(genus_cpm)) %&gt;%
+  dplyr::select(tcga_barcode = value) %&gt;%
+  left_join(clindat_genus_tbl) %&gt;%
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
+  print()
+
+# ensure that rows and columns are matched
+identical(colnames(genus_cpm), rownames(clindat_genus_cpm))
+length(rownames(clindat_genus_cpm))
+length(colnames(genus_cpm))</code></pre>
+<p>Plots - can skip</p>
+<pre class="r"><code># ensure that data approximates normal distribution for limma
+# make tidy dataframe for plotting
+tidy_generator &lt;- function(listelement){
+  listelement %&gt;% 
+    pivot_longer(-tcga_barcode, names_to = &quot;genus&quot;, values_to = &quot;counts&quot;) %&gt;%
+    arrange(desc(counts))
+}
+# make tidy frames with cpm
+tidy_genera &lt;- map(cpm_list$genus_cpm, tidy_generator)
+
+# counts distribution
+counts_dist_plotter &lt;- function(df){
+  plot &lt;- df %&gt;%
+    ggplot(aes(x = counts, color = tcga_barcode)) +
+      geom_density() +
+      theme(legend.position = &quot;none&quot;)
+  
+}
+# plot raw distributions of cpm for each tumor type
+dist_plot_list &lt;- map(tidy_genera, counts_dist_plotter)
+do.call(ggarrange, dist_plot_list) %&gt;%
+  annotate_figure(., top = text_grob(&quot;Counts Distribution by Genus&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))
+          
+# log cpm distribution
+log_dist_plotter &lt;- function(df){
+  plot &lt;- df %&gt;%
+    mutate(lcounts = log2(counts)) %&gt;%
+    dplyr::filter(lcounts &gt; -100) %&gt;%
+    ggplot(aes(x = lcounts), color = tcga_barcode) +
+      geom_density() +
+      theme(legend.position = &quot;none&quot;) +
+      expand_limits(x = c(-20, 30))
+}
+# log cpm density plots
+log_plot_list &lt;- map(tidy_genera, log_dist_plotter)
+names(log_plot_list) &lt;- names(tidy_genera)
+do.call(ggarrange, log_plot_list) %&gt;%
+  annotate_figure(., top = text_grob(&quot;log(Counts) Distribution by Genus&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))
+
+# log counts have a more normal distribution. unlogged counts have right skew</code></pre>
+<p>Limma batch correction</p>
+<pre class="r"><code>#--------------------------------
+## VOOM NORMALIZATION AND BATCH CORRECTION WITH LIMMA ##
+
+# should pass non-log counts to voom
+# voom includes a log2 transformation
+# convert missing counts to 0
+summary(as.factor(is.na(genus_cpm)))
+summary(as.factor(is.nan(genus_cpm)))
+genus_cpm[is.na(genus_cpm)] &lt;- 0
+summary(as.factor(is.na(genus_cpm)))
+summary(as.factor(is.nan(genus_cpm)))
+summary(as.factor(is.finite(genus_cpm)))
+genus_cpm_finite &lt;- genus_cpm[, genus_cpm[genus_cpm == Inf]]
+
+# eliminate samples with library size 0
+dim(genus_cpm)
+genus_cpm_filt &lt;- genus_cpm[, colSums(genus_cpm != 0) &gt; 0]
+dim(genus_cpm_filt)
+
+# repair clinical data to match genus cpm after cases were dropped
+clindat_genus_tbl &lt;- cpm_clindat %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble()
+clindat_genus_cpm_filt &lt;- enframe(colnames(genus_cpm_filt)) %&gt;%
+  dplyr::select(tcga_barcode = value) %&gt;%
+  left_join(clindat_genus_tbl) %&gt;%
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
+  print()
+
+dim(clindat_genus_cpm_filt)
+
+# ensure that rows and columns are matched
+identical(colnames(genus_cpm_filt), rownames(clindat_genus_cpm_filt))
+length(rownames(clindat_genus_cpm_filt))
+length(colnames(genus_cpm_filt))
+
+# create DGEList
+dge &lt;- DGEList(counts = genus_cpm_filt)
+
+# apply TMM normalization to DGE
+dge &lt;- calcNormFactors(dge)
+
+# set up design matrix
+# design matrix should include real differences to be preserved
+# Rob Knight paper used tumor type as real difference
+# I will do the same
+rnames &lt;- rownames(clindat_genus_cpm_filt)
+TCGA_ &lt;- clindat_genus_cpm_filt$tcga_proj %&gt;% as.factor()
+summary(TCGA_)
+design &lt;- model.matrix(~ 0 + TCGA_)
+rownames(design) &lt;- rnames
+head(design)
+
+# Include sequencing center / plate as a batch variable to the model
+batch &lt;- as.factor(clindat_genus_cpm_filt$batch)
+summary(batch)
+
+# Remove batch effects
+v &lt;- voom(dge, design, plot = TRUE)
+genus_cpm_corrected &lt;- removeBatchEffect(v, batch = batch, design = design)
+
+# check for negative results
+genus_cpm_corrected[genus_cpm_corrected &lt; 0] %&gt;% length()
+# what is lowest negative value?
+genus_cpm_corrected %&gt;% min()
+# add correction factor to eliminate negative values
+genus_cpm_corrected_noneg &lt;- as.matrix(genus_cpm_corrected) + 31
+genus_cpm_corrected_noneg %&gt;% min()
+# check for missing results
+summary(as.factor(is.finite(genus_cpm_corrected_noneg)))
+
+# save results as ExpressionSet
+# first need variable annotation
+v_metadata &lt;- data.frame(
+  labelDescription = colnames(clindat_genus_cpm_filt),
+  row.names = colnames(clindat_genus_cpm_filt))
+
+# make annotated phenoData
+phenoData &lt;- new(&quot;AnnotatedDataFrame&quot;, 
+                 data = clindat_genus_cpm_filt, 
+                 varMetadata = v_metadata)
+phenoData
+
+# convert expression data to matrix format
+genus_cpm_mat &lt;- genus_cpm_corrected_noneg %&gt;% as.matrix()
+
+# create global annotation
+annotation &lt;- as.character(&quot;Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction&quot;)
+
+# assemble expressionset
+genus_es &lt;- ExpressionSet(
+  assayData = genus_cpm_mat,
+  phenoData = phenoData,
+  annotation = annotation)
+genus_es
+
+# save
+saveRDS(genus_es, &quot;corrected_genus_cpm_expressionset.rds&quot;)</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span> Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+http://docs.mathjax.org/en/latest/configuration.html.  This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
