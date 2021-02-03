@@ -10,7 +10,7 @@ editor_options:
 ## Summary
 
 ```
-Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction
+Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant added to all counts to eliminate negative values after batch correction.
 ```
 
 ## Setup
@@ -270,7 +270,7 @@ phenoData
 genus_cpm_mat <- genus_cpm_corrected_noneg %>% as.matrix()
 
 # create global annotation
-annotation <- as.character("Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction")
+annotation <- as.character("Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant added to all counts to eliminate negative values after batch correction.")
 
 # assemble expressionset
 genus_es <- ExpressionSet(
