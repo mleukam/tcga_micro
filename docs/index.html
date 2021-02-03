@@ -375,16 +375,16 @@ This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree2a1a77b694f3003eeab238dba373955fb767ea89targetblank2a1a77ba"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/2a1a77b694f3003eeab238dba373955fb767ea89" target="_blank">2a1a77b</a> </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree26a46402e9d428051b7c98e97845dea53b7db898targetblank26a4640a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/26a46402e9d428051b7c98e97845dea53b7db898" target="_blank">26a4640</a> </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree2a1a77b694f3003eeab238dba373955fb767ea89targetblank2a1a77ba" class="panel-collapse collapse">
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree26a46402e9d428051b7c98e97845dea53b7db898targetblank26a4640a" class="panel-collapse collapse">
 <div class="panel-body">
 <p>
 Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/2a1a77b694f3003eeab238dba373955fb767ea89" target="_blank">2a1a77b</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/26a46402e9d428051b7c98e97845dea53b7db898" target="_blank">26a4640</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
 </p>
 <p>
 Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
@@ -434,9 +434,6 @@ Untracked files:
     Untracked:  analysis/africa_csf.Rmd
     Untracked:  code/get_reads_v2.sh
 
-Unstaged changes:
-    Modified:   analysis/batch_correction.Rmd
-
 </code></pre>
 <p>
 Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
@@ -474,6 +471,40 @@ Message
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/26a46402e9d428051b7c98e97845dea53b7db898/analysis/index.Rmd" target="_blank">26a4640</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+fixed links in index
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/mleukam/tcga_micro/2b442f3b1b0d9c08f89ec10d9c64c6859b8bfd78/docs/index.html" target="_blank">2b442f3</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+Build site.
+</td>
+</tr>
 <tr>
 <td>
 Rmd
@@ -574,7 +605,7 @@ Start workflowr project.
 <li><a href="collect_tables.html">Collect Tables</a> - get individual results from Agamemnon into a single table for eeach project (run on O2). Repair taxonomy with no missing taxa.</li>
 <li><a href="tcga_data_prep.html">TCGA Data Prep</a> - change rownames to TCGA legacy barcodes. Get full TCGA barcodes for batch correction. Add in clinical and immune correlate data. Save output in list structure. Filter cases for primary tumors only and eliminate second biopsies from cases with multiple tissue biopsies.</li>
 <li><a href="derive_vars.html">Derive Variables</a> - calculate measures of diversity, richness, high level taxonomy, and other basic descriptive summary variables for later analysis.</li>
-<li><a href="batch_correction.Rmd">Batch Correction</a> - log transformation, normalization, and batch correction by sequencing center and plate using limma model.</li>
+<li><a href="batch_correction.html">Batch Correction</a> - log transformation, normalization, and batch correction by sequencing center and plate using limma model.</li>
 </ul>
 </div>
 <div id="immune-correlates" class="section level2">
