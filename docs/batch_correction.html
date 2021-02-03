@@ -1,0 +1,1398 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Michael Leukam" />
+
+<meta name="date" content="2021-02-03" />
+
+<title>batch_correction</title>
+
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/anchor-sections-1.0/anchor-sections.css" rel="stylesheet" />
+<script src="site_libs/anchor-sections-1.0/anchor-sections.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/master/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+  pre:not([class]) {
+    background-color: white;
+  }
+</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+<style type="text/css">
+h1 {
+  font-size: 34px;
+}
+h1.title {
+  font-size: 38px;
+}
+h2 {
+  font-size: 30px;
+}
+h3 {
+  font-size: 24px;
+}
+h4 {
+  font-size: 18px;
+}
+h5 {
+  font-size: 16px;
+}
+h6 {
+  font-size: 12px;
+}
+.table th:not([align]) {
+  text-align: left;
+}
+</style>
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+</style>
+
+
+<style type="text/css">
+/* padding for bootstrap navbar */
+body {
+  padding-top: 51px;
+  padding-bottom: 40px;
+}
+/* offset scroll position for anchor links (for fixed navbar)  */
+.section h1 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h2 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h3 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h4 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h5 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.section h6 {
+  padding-top: 56px;
+  margin-top: -56px;
+}
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #ffffff;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script>
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.parent().addClass('active');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row-fluid">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">tcga_micro</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/mleukam/tcga_micro">
+    <span class="fa fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div class="fluid-row" id="header">
+
+
+
+<h1 class="title toc-ignore">batch_correction</h1>
+<h4 class="author">Michael Leukam</h4>
+<h4 class="date">2021-02-03</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span> workflowr <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> </a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2021-02-03
+</p>
+<p>
+<strong>Checks:</strong> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 7 <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> 0
+</p>
+<p>
+<strong>Knit directory:</strong> <code>tcga_micro/</code> <span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed."> </span>
+</p>
+<p>
+This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis was created with <a
+  href="https://github.com/jdblischak/workflowr">workflowr</a> (version 1.6.2). The <em>Checks</em> tab describes the reproducibility checks that were applied when the results were created. The <em>Past versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date </a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git repository, you know the exact version of the code that produced these results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the global environment can affect the analysis in your R Markdown file in unknown ways. For reproduciblity it’s best to always run the code in an empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20201014code"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Seed:</strong> <code>set.seed(20201014)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20201014code" class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20201014)</code> was run prior to running the code in the R Markdown file. Setting a seed ensures that any results that rely on randomness, e.g. subsampling or permutations, are reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Session information:</strong> recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be confident that you successfully produced the results during this run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>File paths:</strong> relative </a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr project makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreebf1256249525da5471eaf331dd1f532d979ef0d6targetblankbf12562a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/bf1256249525da5471eaf331dd1f532d979ef0d6" target="_blank">bf12562</a> </a>
+</p>
+</div>
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreebf1256249525da5471eaf331dd1f532d979ef0d6targetblankbf12562a" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/bf1256249525da5471eaf331dd1f532d979ef0d6" target="_blank">bf12562</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .DS_Store
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    analysis/figure/
+    Ignored:    corrected_genus_cpm_expressionset.rds
+    Ignored:    data/2021_01_11_readcounts.csv
+    Ignored:    data/2021_01_20_readcounts.csv
+    Ignored:    data/africa_metadata.csv
+    Ignored:    data/africa_mode1.csv
+    Ignored:    data/genus_analysis_list.rds
+    Ignored:    data/imm_cor_souce.tsv
+    Ignored:    data/mode2_tcga_counts_list.rds
+    Ignored:    data/mode2_tcga_counts_list_clean.rds
+    Ignored:    data/tcga_counts_list_mode2.rds
+    Ignored:    data/tcga_proj_taxonomy.csv
+    Ignored:    data/tcga_proj_taxonomy.rds
+    Ignored:    data/tcga_proj_taxonomy_nomissing.csv
+    Ignored:    data/tcga_proj_taxonomy_nomissing.rds
+    Ignored:    data/totreads_list_backup.rds
+    Ignored:    data/totreads_list_mode2.rds
+    Ignored:    output/.DS_Store
+    Ignored:    output/africa/
+    Ignored:    output/display_genus_immune_correlations_pearson.xlsx
+    Ignored:    output/display_genus_immune_correlations_spearman.xlsx
+    Ignored:    output/display_genus_summary_correlations_spearman.xlsx
+    Ignored:    output/draft_mode2_clindat.csv
+    Ignored:    output/draft_mode2_counts_rowformat.csv
+    Ignored:    output/genus_immune_correlations_pearson.rds
+    Ignored:    output/genus_immune_correlations_spearman.rds
+    Ignored:    output/genus_sumvar_correlations_pearson.rds
+    Ignored:    output/genus_sumvar_correlations_spearman.rds
+    Ignored:    output/global_high_level_correlations.csv
+    Ignored:    output/mode2_counts_columnformat_draft.csv
+    Ignored:    output/plots/
+    Ignored:    output/tcga_batchcorrected_correlations_pearson.xlsx
+    Ignored:    output/tcga_batchcorrected_correlations_spearman.xlsx
+    Ignored:    output/tcga_correlations_pearson.xlsx
+    Ignored:    output/tcga_correlations_spearman.xlsx
+    Ignored:    output/tcga_global_batchcorrected_correlations_spearman.xlsx
+
+Untracked files:
+    Untracked:  analysis/africa_csf.Rmd
+    Untracked:  code/get_reads_v2.sh
+
+Unstaged changes:
+    Modified:   analysis/derive_vars.Rmd
+    Modified:   analysis/genus_models.Rmd
+    Modified:   analysis/tcga_data_prep.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were made to the R Markdown (<code>analysis/batch_correction.Rmd</code>) and HTML (<code>docs/batch_correction.html</code>) files. If you’ve configured a remote Git repository (see <code>?wflow_git_remote</code>), click on the hyperlinks in the table below to view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/bf1256249525da5471eaf331dd1f532d979ef0d6/analysis/batch_correction.Rmd" target="_blank">bf12562</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+normalization and batch correction working with limma
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="summary" class="section level2">
+<h2>Summary</h2>
+<pre><code>Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction</code></pre>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<p>Clear the workspace and set seed</p>
+<pre class="r"><code>rm(list=ls())
+set.seed(818)</code></pre>
+<p>Load packages</p>
+<pre class="r"><code># data cleaning
+library(tidyverse)</code></pre>
+<pre><code>Warning: package &#39;tidyverse&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Warning: package &#39;tibble&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Warning: package &#39;tidyr&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Warning: package &#39;readr&#39; was built under R version 4.0.2</code></pre>
+<pre><code>Warning: package &#39;dplyr&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(Biobase)
+library(Matrix.utils)</code></pre>
+<pre><code>Warning: package &#39;Matrix.utils&#39; was built under R version 4.0.2</code></pre>
+<pre class="r"><code>library(limma)
+library(ggpubr)
+library(edgeR)</code></pre>
+</div>
+<div id="batch-correction" class="section level2">
+<h2>Batch Correction</h2>
+<p>From the manual for limma::removeBatchEffect</p>
+<pre><code>This function is useful for removing batch effects, associated with hybridization time or other technical variables, prior to clustering or unsupervised analysis such as PCA, MDS or heatmaps. It is not intended to use with linear modelling. For linear modelling, it is better to include the batch factors in the linear model.
+
+The design matrix is used to describe comparisons between the samples, for example treatment effects, which should not be removed.
+
+The function (in effect) fits a linear model to the data, including both batches and regular treatments, then removes the component due to the batch effects.
+
+The data object x can be of any class for which lmFit works. If x contains weights, then these will be used in estimating the batch effects.</code></pre>
+<pre class="r"><code># read in counts from tcga_data_prep
+tcga_counts &lt;- readRDS(&quot;data/mode2_tcga_counts_list_clean.rds&quot;)
+str(tcga_counts, max.level = 2)</code></pre>
+<pre><code>List of 4
+ $ counts    :List of 5
+  ..$ kingdom:List of 11
+  ..$ phylum :List of 11
+  ..$ genus  :List of 11
+  ..$ species:List of 11
+  ..$ taxid  :List of 11
+ $ clindat   :List of 11
+  ..$ BRCA: tibble [1,102 × 68] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [533 × 69] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [155 × 63] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [502 × 69] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 68] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [375 × 68] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 63] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [548 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [538 × 70] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 73] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 68] (S3: tbl_df/tbl/data.frame)
+ $ imm_cor   :List of 11
+  ..$ BRCA: tibble [1,087 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [575 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [599 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [490 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [470 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [440 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [514 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [543 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [518 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [523 × 64] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [503 × 64] (S3: tbl_df/tbl/data.frame)
+ $ cpm_counts:List of 6
+  ..$ kingdom_cpm:List of 11
+  ..$ phylum_cpm :List of 11
+  ..$ genus_cpm  :List of 11
+  ..$ species_cpm:List of 11
+  ..$ taxid_cpm  :List of 11
+  ..$ cpm_clindat:List of 11</code></pre>
+<pre class="r"><code>str(tcga_counts$cpm_counts, max.level = 2)</code></pre>
+<pre><code>List of 6
+ $ kingdom_cpm:List of 11
+  ..$ BRCA: tibble [1,101 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [533 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [155 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [502 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [548 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [538 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 5] (S3: tbl_df/tbl/data.frame)
+ $ phylum_cpm :List of 11
+  ..$ BRCA: tibble [1,101 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [533 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [155 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [502 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [548 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [538 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 25] (S3: tbl_df/tbl/data.frame)
+ $ genus_cpm  :List of 11
+  ..$ BRCA: tibble [1,133 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [593 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [159 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [504 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [568 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [562 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 333] (S3: tbl_df/tbl/data.frame)
+ $ species_cpm:List of 11
+  ..$ BRCA: tibble [1,133 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [593 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [159 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [504 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [568 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [562 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 1,829] (S3: tbl_df/tbl/data.frame)
+ $ taxid_cpm  :List of 11
+  ..$ BRCA: tibble [1,133 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [593 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [159 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [504 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [568 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [562 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 1,888] (S3: tbl_df/tbl/data.frame)
+ $ cpm_clindat:List of 11
+  ..$ BRCA: tibble [1,102 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [533 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [155 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [502 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [375 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [548 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [538 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 76] (S3: tbl_df/tbl/data.frame)</code></pre>
+<pre class="r"><code># pull out CPM counts
+cpm_list &lt;- tcga_counts$cpm_counts
+str(cpm_list, max.level = 2)</code></pre>
+<pre><code>List of 6
+ $ kingdom_cpm:List of 11
+  ..$ BRCA: tibble [1,101 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [533 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [155 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [502 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [548 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [538 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 5] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 5] (S3: tbl_df/tbl/data.frame)
+ $ phylum_cpm :List of 11
+  ..$ BRCA: tibble [1,101 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [533 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [155 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [502 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [548 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [538 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 25] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 25] (S3: tbl_df/tbl/data.frame)
+ $ genus_cpm  :List of 11
+  ..$ BRCA: tibble [1,133 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [593 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [159 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [504 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [568 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [562 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 333] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 333] (S3: tbl_df/tbl/data.frame)
+ $ species_cpm:List of 11
+  ..$ BRCA: tibble [1,133 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [593 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [159 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [504 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [568 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [562 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 1,829] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 1,829] (S3: tbl_df/tbl/data.frame)
+ $ taxid_cpm  :List of 11
+  ..$ BRCA: tibble [1,133 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [593 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [159 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [504 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [350 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [568 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [562 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 1,888] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 1,888] (S3: tbl_df/tbl/data.frame)
+ $ cpm_clindat:List of 11
+  ..$ BRCA: tibble [1,102 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ LUAD: tibble [533 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ GBM : tibble [155 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ LUSC: tibble [502 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ SKCM: tibble [103 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ STAD: tibble [375 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ LGG : tibble [511 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ UCEC: tibble [548 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ KIRC: tibble [538 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ HNSC: tibble [500 × 76] (S3: tbl_df/tbl/data.frame)
+  ..$ THCA: tibble [500 × 76] (S3: tbl_df/tbl/data.frame)</code></pre>
+<pre class="r"><code># get linked clinical data to set up limma model
+# convert to dataframe with subjects in rows
+cpm_clindat &lt;- tcga_counts$cpm_counts$cpm_clindat %&gt;%
+  # collapse list to single tbl
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  # remove duplicates (very few)
+  distinct(tcga_barcode, .keep_all = TRUE) %&gt;%
+  # create variable for plate and center == batch
+  separate(tcga_full_barcode, 
+           into = c(NA, NA, NA, NA, NA, &quot;plate&quot;, &quot;center&quot;), 
+           sep = &quot;-&quot;, 
+           remove = FALSE) %&gt;%
+  unite(&quot;batch&quot;, 
+        c(&quot;plate&quot;, &quot;center&quot;), 
+        sep = &quot;&quot;, 
+        remove = FALSE) %&gt;%
+  # convert to df with rownames
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;)
+
+# review
+dim(cpm_clindat)</code></pre>
+<pre><code>[1] 5317   79</code></pre>
+<pre class="r"><code>colnames(cpm_clindat)</code></pre>
+<pre><code> [1] &quot;name&quot;                              &quot;totreads&quot;                         
+ [3] &quot;file_id&quot;                           &quot;tcga_full_barcode&quot;                
+ [5] &quot;batch&quot;                             &quot;plate&quot;                            
+ [7] &quot;center&quot;                            &quot;case_id&quot;                          
+ [9] &quot;sample_type&quot;                       &quot;race&quot;                             
+[11] &quot;ethnicity&quot;                         &quot;gender&quot;                           
+[13] &quot;vital_status&quot;                      &quot;age_at_index&quot;                     
+[15] &quot;submitter_id.x&quot;                    &quot;days_to_birth&quot;                    
+[17] &quot;created_datetime.x&quot;                &quot;year_of_birth&quot;                    
+[19] &quot;demographic_id&quot;                    &quot;updated_datetime.x&quot;               
+[21] &quot;state.x&quot;                           &quot;year_of_death&quot;                    
+[23] &quot;days_to_death&quot;                     &quot;synchronous_malignancy&quot;           
+[25] &quot;ajcc_pathologic_stage&quot;             &quot;tumor_stage&quot;                      
+[27] &quot;days_to_diagnosis&quot;                 &quot;created_datetime.y&quot;               
+[29] &quot;last_known_disease_status&quot;         &quot;tissue_or_organ_of_origin&quot;        
+[31] &quot;days_to_last_follow_up&quot;            &quot;primary_diagnosis&quot;                
+[33] &quot;age_at_diagnosis&quot;                  &quot;updated_datetime.y&quot;               
+[35] &quot;prior_malignancy&quot;                  &quot;year_of_diagnosis&quot;                
+[37] &quot;prior_treatment&quot;                   &quot;state.y&quot;                          
+[39] &quot;days_to_last_known_disease_status&quot; &quot;ajcc_staging_system_edition&quot;      
+[41] &quot;ajcc_pathologic_t&quot;                 &quot;days_to_recurrence&quot;               
+[43] &quot;morphology&quot;                        &quot;ajcc_pathologic_n&quot;                
+[45] &quot;ajcc_pathologic_m&quot;                 &quot;submitter_id.y&quot;                   
+[47] &quot;classification_of_tumor&quot;           &quot;diagnosis_id&quot;                     
+[49] &quot;icd_10_code&quot;                       &quot;site_of_resection_or_biopsy&quot;      
+[51] &quot;tumor_grade&quot;                       &quot;progression_or_recurrence&quot;        
+[53] &quot;cigarettes_per_day&quot;                &quot;updated_datetime.x.x&quot;             
+[55] &quot;alcohol_history&quot;                   &quot;exposure_id&quot;                      
+[57] &quot;submitter_id.x.x&quot;                  &quot;weight&quot;                           
+[59] &quot;years_smoked&quot;                      &quot;state.x.x&quot;                        
+[61] &quot;alcohol_intensity&quot;                 &quot;created_datetime.x.x&quot;             
+[63] &quot;bmi&quot;                               &quot;height&quot;                           
+[65] &quot;id.x&quot;                              &quot;disease_type&quot;                     
+[67] &quot;submitter_id.y.y&quot;                  &quot;created_datetime.y.y&quot;             
+[69] &quot;primary_site&quot;                      &quot;updated_datetime.y.y&quot;             
+[71] &quot;state.y.y&quot;                         &quot;id.y&quot;                             
+[73] &quot;pack_years_smoked&quot;                 &quot;figo_stage&quot;                       
+[75] &quot;ajcc_clinical_m&quot;                   &quot;ajcc_clinical_stage&quot;              
+[77] &quot;ajcc_clinical_n&quot;                   &quot;ajcc_clinical_t&quot;                  
+[79] &quot;tcga_proj&quot;                        </code></pre>
+<pre class="r"><code>cpm_clindat[1:5, 1:5]</code></pre>
+<pre><code>             name totreads                              file_id
+TCGA-C8-A26X BRCA 11881506 d195664a-67fa-4744-a06c-6d853e7b91cc
+TCGA-WT-AB41 BRCA  2055040 2a01547d-6c2c-45bd-92ba-01d449b94049
+TCGA-E2-A15A BRCA  6479835 9e929416-ed12-4a99-bfa2-18441c66a826
+TCGA-BH-A18K BRCA  4683926 12473f59-359c-4306-ade3-2156e458cd05
+TCGA-A1-A0SF BRCA  4751105 6f3b0c29-f679-4f63-a665-7d2e0599ae40
+                        tcga_full_barcode  batch
+TCGA-C8-A26X TCGA-C8-A26X-01A-31R-A16F-07 A16F07
+TCGA-WT-AB41 TCGA-WT-AB41-01A-11R-A41B-07 A41B07
+TCGA-E2-A15A TCGA-E2-A15A-01A-11R-A12D-07 A12D07
+TCGA-BH-A18K TCGA-BH-A18K-01A-11R-A12D-07 A12D07
+TCGA-A1-A0SF TCGA-A1-A0SF-01A-11R-A144-07 A14407</code></pre>
+<div id="genus-counts-corrected" class="section level4">
+<h4>Genus Counts Corrected</h4>
+<pre class="r"><code># start with genus as code test
+# get counts to set up limma model
+genus_cpm &lt;- cpm_list$genus_cpm %&gt;%
+  # collapse list to single tbl
+  bind_rows() %&gt;%
+  # remove duplicates (very few, about 30)
+  distinct(tcga_barcode, .keep_all = TRUE) %&gt;%
+  # convert to matrix and rotate
+  # cases are in columns and features are in rows
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
+  as.matrix() %&gt;%
+  t() 
+
+# check results
+dim(genus_cpm)</code></pre>
+<pre><code>[1]  332 5291</code></pre>
+<pre class="r"><code>genus_cpm[1:5, 1:5]</code></pre>
+<pre><code>                TCGA-BH-A5IZ TCGA-BH-A0BM TCGA-E9-A1N5 TCGA-AR-A24L
+---              158.3561157   34.2511759    189.91693    87.902600
+Abiotrophia        0.2361641    0.4030538      0.00000     0.000000
+Acetomicrobium     0.0000000    0.0000000      0.00000   620.410586
+Achromobacter     10.9894168  344.8269748     12.60685     8.104771
+Acidaminococcus    0.0000000    1.0105964      0.00000     0.000000
+                TCGA-S3-AA15
+---                73.773999
+Abiotrophia         0.000000
+Acetomicrobium    615.556624
+Achromobacter       9.932632
+Acidaminococcus     1.767096</code></pre>
+<pre class="r"><code># repair clinical data to match genus cpm
+clindat_genus_tbl &lt;- cpm_clindat %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble()
+clindat_genus_cpm &lt;- enframe(colnames(genus_cpm)) %&gt;%
+  dplyr::select(tcga_barcode = value) %&gt;%
+  left_join(clindat_genus_tbl) %&gt;%
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;)</code></pre>
+<pre><code>Joining, by = &quot;tcga_barcode&quot;</code></pre>
+<pre class="r"><code># check results
+dim(clindat_genus_cpm)</code></pre>
+<pre><code>[1] 5291   79</code></pre>
+<pre class="r"><code>clindat_genus_cpm[1:5, 1:5]</code></pre>
+<pre><code>             name totreads                              file_id
+TCGA-BH-A5IZ BRCA  4234343 000837e3-cc9f-4226-ba38-44fa45140671
+TCGA-BH-A0BM BRCA  9926416 006b2b95-7069-4cb6-bfe8-7edb80056add
+TCGA-E9-A1N5 BRCA  3319271 008da0f8-e12c-48c3-aabc-b1337fc5f4cd
+TCGA-AR-A24L BRCA  7738053 00bc1305-bc2e-44d5-a36a-cf67cf388908
+TCGA-S3-AA15 BRCA  7817120 00fbd326-73fb-4ede-bf73-e028a07154e9
+                        tcga_full_barcode  batch
+TCGA-BH-A5IZ TCGA-BH-A5IZ-01A-11R-A27Q-07 A27Q07
+TCGA-BH-A0BM TCGA-BH-A0BM-01A-11R-A056-07 A05607
+TCGA-E9-A1N5 TCGA-E9-A1N5-01A-11R-A14D-07 A14D07
+TCGA-AR-A24L TCGA-AR-A24L-01A-11R-A169-07 A16907
+TCGA-S3-AA15 TCGA-S3-AA15-01A-11R-A41B-07 A41B07</code></pre>
+<pre class="r"><code># ensure that rows and columns are matched
+identical(colnames(genus_cpm), rownames(clindat_genus_cpm))</code></pre>
+<pre><code>[1] TRUE</code></pre>
+<pre class="r"><code>length(rownames(clindat_genus_cpm))</code></pre>
+<pre><code>[1] 5291</code></pre>
+<pre class="r"><code>length(colnames(genus_cpm))</code></pre>
+<pre><code>[1] 5291</code></pre>
+<p>Plots</p>
+<pre class="r"><code># ensure that data approximates normal distribution for limma
+# make tidy dataframe for plotting
+tidy_generator &lt;- function(listelement){
+  listelement %&gt;% 
+    pivot_longer(-tcga_barcode, names_to = &quot;genus&quot;, values_to = &quot;counts&quot;) %&gt;%
+    arrange(desc(counts))
+}
+# make tidy frames with cpm
+tidy_genera &lt;- map(cpm_list$genus_cpm, tidy_generator)
+
+# counts distribution
+counts_dist_plotter &lt;- function(df){
+  plot &lt;- df %&gt;%
+    ggplot(aes(x = counts, color = tcga_barcode)) +
+      geom_density() +
+      theme(legend.position = &quot;none&quot;)
+  
+}
+# plot raw distributions of cpm for each tumor type
+dist_plot_list &lt;- map(tidy_genera, counts_dist_plotter)
+do.call(ggarrange, dist_plot_list) %&gt;%
+  annotate_figure(., top = text_grob(&quot;Counts Distribution by Genus&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))</code></pre>
+<pre><code>Warning: Removed 332 rows containing non-finite values (stat_density).</code></pre>
+<pre><code>Warning: Removed 4980 rows containing non-finite values (stat_density).</code></pre>
+<pre><code>Warning: Removed 1992 rows containing non-finite values (stat_density).</code></pre>
+<pre><code>Warning: Removed 124500 rows containing non-finite values (stat_density).</code></pre>
+<pre><code>Warning: Removed 332 rows containing non-finite values (stat_density).
+
+Warning: Removed 332 rows containing non-finite values (stat_density).</code></pre>
+<p><img src="figure/batch_correction.Rmd/unnamed-chunk-5-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># log cpm distribution
+log_dist_plotter &lt;- function(df){
+  plot &lt;- df %&gt;%
+    mutate(lcounts = log2(counts)) %&gt;%
+    dplyr::filter(lcounts &gt; -100) %&gt;%
+    ggplot(aes(x = lcounts), color = tcga_barcode) +
+      geom_density() +
+      theme(legend.position = &quot;none&quot;) +
+      expand_limits(x = c(-20, 30))
+}
+# log cpm density plots
+log_plot_list &lt;- map(tidy_genera, log_dist_plotter)
+names(log_plot_list) &lt;- names(tidy_genera)
+do.call(ggarrange, log_plot_list) %&gt;%
+  annotate_figure(., top = text_grob(&quot;log(Counts) Distribution by Genus&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))</code></pre>
+<pre><code>Warning: Removed 1103 rows containing non-finite values (stat_density).</code></pre>
+<p><img src="figure/batch_correction.Rmd/unnamed-chunk-5-2.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># log counts have a more normal distribution. unlogged counts have right skew</code></pre>
+<p>Limma batch correction</p>
+<pre class="r"><code>#--------------------------------
+## VOOM NORMALIZATION AND BATCH CORRECTION WITH LIMMA ##
+
+# should pass non-log counts to voom
+# voom includes a log2 transformation
+# convert missing counts to 0
+dim(genus_cpm)</code></pre>
+<pre><code>[1]  332 5291</code></pre>
+<pre class="r"><code>summary(as.factor(is.na(genus_cpm)))</code></pre>
+<pre><code>  FALSE    TRUE 
+1627635  128977 </code></pre>
+<pre class="r"><code>summary(as.factor(is.nan(genus_cpm)))</code></pre>
+<pre><code>  FALSE    TRUE 
+1627635  128977 </code></pre>
+<pre class="r"><code>genus_cpm[is.na(genus_cpm)] &lt;- 0
+summary(as.factor(is.na(genus_cpm)))</code></pre>
+<pre><code>  FALSE 
+1756612 </code></pre>
+<pre class="r"><code># check other non-numeric values
+summary(as.factor(is.nan(genus_cpm)))</code></pre>
+<pre><code>  FALSE 
+1756612 </code></pre>
+<pre class="r"><code>summary(as.factor(is.finite(genus_cpm)))</code></pre>
+<pre><code>  FALSE    TRUE 
+    171 1756441 </code></pre>
+<pre class="r"><code># remove cases with any infinites
+genus_cpm[!is.finite(genus_cpm)] &lt;- NA
+genus_cpm &lt;- genus_cpm[, colSums(is.na(genus_cpm)) == 0]
+
+# check again
+summary(as.factor(is.na(genus_cpm)))</code></pre>
+<pre><code>  FALSE 
+1756280 </code></pre>
+<pre class="r"><code>summary(as.factor(is.nan(genus_cpm)))</code></pre>
+<pre><code>  FALSE 
+1756280 </code></pre>
+<pre class="r"><code>summary(as.factor(is.finite(genus_cpm)))</code></pre>
+<pre><code>   TRUE 
+1756280 </code></pre>
+<pre class="r"><code>dim(genus_cpm)</code></pre>
+<pre><code>[1]  332 5290</code></pre>
+<pre class="r"><code># remove cases with library size 0
+dim(genus_cpm)</code></pre>
+<pre><code>[1]  332 5290</code></pre>
+<pre class="r"><code>genus_cpm_filt &lt;- genus_cpm[, colSums(genus_cpm != 0) &gt; 0]
+dim(genus_cpm_filt)</code></pre>
+<pre><code>[1]  332 4900</code></pre>
+<pre class="r"><code># repair clinical data to match genus cpm after cases were dropped
+clindat_genus_tbl &lt;- cpm_clindat %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble()
+
+clindat_genus_cpm_filt &lt;- enframe(colnames(genus_cpm_filt)) %&gt;%
+  dplyr::select(tcga_barcode = value) %&gt;%
+  left_join(clindat_genus_tbl) %&gt;%
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;)</code></pre>
+<pre><code>Joining, by = &quot;tcga_barcode&quot;</code></pre>
+<pre class="r"><code>dim(clindat_genus_cpm_filt)</code></pre>
+<pre><code>[1] 4900   79</code></pre>
+<pre class="r"><code>clindat_genus_cpm_filt[1:5, 1:5]</code></pre>
+<pre><code>             name totreads                              file_id
+TCGA-BH-A5IZ BRCA  4234343 000837e3-cc9f-4226-ba38-44fa45140671
+TCGA-BH-A0BM BRCA  9926416 006b2b95-7069-4cb6-bfe8-7edb80056add
+TCGA-E9-A1N5 BRCA  3319271 008da0f8-e12c-48c3-aabc-b1337fc5f4cd
+TCGA-AR-A24L BRCA  7738053 00bc1305-bc2e-44d5-a36a-cf67cf388908
+TCGA-S3-AA15 BRCA  7817120 00fbd326-73fb-4ede-bf73-e028a07154e9
+                        tcga_full_barcode  batch
+TCGA-BH-A5IZ TCGA-BH-A5IZ-01A-11R-A27Q-07 A27Q07
+TCGA-BH-A0BM TCGA-BH-A0BM-01A-11R-A056-07 A05607
+TCGA-E9-A1N5 TCGA-E9-A1N5-01A-11R-A14D-07 A14D07
+TCGA-AR-A24L TCGA-AR-A24L-01A-11R-A169-07 A16907
+TCGA-S3-AA15 TCGA-S3-AA15-01A-11R-A41B-07 A41B07</code></pre>
+<pre class="r"><code># ensure that rows and columns are matched
+identical(colnames(genus_cpm_filt), rownames(clindat_genus_cpm_filt))</code></pre>
+<pre><code>[1] TRUE</code></pre>
+<pre class="r"><code>length(rownames(clindat_genus_cpm_filt))</code></pre>
+<pre><code>[1] 4900</code></pre>
+<pre class="r"><code>length(colnames(genus_cpm_filt))</code></pre>
+<pre><code>[1] 4900</code></pre>
+<pre class="r"><code># create DGEList
+dge &lt;- DGEList(counts = genus_cpm_filt)
+
+# apply TMM normalization to DGE
+dge &lt;- calcNormFactors(dge)
+
+# set up design matrix
+# design matrix should include real differences to be preserved
+# Rob Knight paper used tumor type as real difference
+# I will do the same
+rnames &lt;- rownames(clindat_genus_cpm_filt)
+TCGA_ &lt;- clindat_genus_cpm_filt$tcga_proj %&gt;% as.factor()
+summary(TCGA_)</code></pre>
+<pre><code>BRCA  GBM HNSC KIRC  LGG LUAD LUSC SKCM STAD THCA UCEC 
+1089  153  499  529  505  512  501  103  335  500  174 </code></pre>
+<pre class="r"><code>design &lt;- model.matrix(~ 0 + TCGA_)
+rownames(design) &lt;- rnames
+head(design)</code></pre>
+<pre><code>             TCGA_BRCA TCGA_GBM TCGA_HNSC TCGA_KIRC TCGA_LGG TCGA_LUAD
+TCGA-BH-A5IZ         1        0         0         0        0         0
+TCGA-BH-A0BM         1        0         0         0        0         0
+TCGA-E9-A1N5         1        0         0         0        0         0
+TCGA-AR-A24L         1        0         0         0        0         0
+TCGA-S3-AA15         1        0         0         0        0         0
+TCGA-D8-A27F         1        0         0         0        0         0
+             TCGA_LUSC TCGA_SKCM TCGA_STAD TCGA_THCA TCGA_UCEC
+TCGA-BH-A5IZ         0         0         0         0         0
+TCGA-BH-A0BM         0         0         0         0         0
+TCGA-E9-A1N5         0         0         0         0         0
+TCGA-AR-A24L         0         0         0         0         0
+TCGA-S3-AA15         0         0         0         0         0
+TCGA-D8-A27F         0         0         0         0         0</code></pre>
+<pre class="r"><code># Include sequencing center / plate as a batch variable to the model
+batch &lt;- as.factor(clindat_genus_cpm_filt$batch)
+summary(batch)</code></pre>
+<pre><code> A03407  A34R07  A00Z07  A11507  240307  184901  A24H07  185001  A13Q07  201607 
+     90      90      88      87      86      81      74      71      71      69 
+ A27Q07  A22K07  A25007  A32Q07  154107  A23N07  A26607  A19O07  128907  234313 
+     68      65      65      61      60      59      59      58      50      50 
+ A36H07  194907  A26W07  130507  142007  A05607  A18007  A41431  133407  A08407 
+     50      49      48      47      47      47      47      47      46      46 
+ 142607  A28M07  150307  085107  127707  132507  A16907  A31N07  A41B07  A24X07 
+     45      45      44      43      43      43      43      42      42      41 
+ A26207  167207  191507  202707  A12D07  A12P07  A14407  A33Z07  143607  175507 
+     41      40      40      40      40      40      40      40      39      39 
+ A10907  A29R07  168607  A19W07  A20607  098007  185807  224707  120607  224107 
+     39      39      38      37      37      36      36      36      35      35 
+ 225607  A22L07  187307  203907  A14M07  A34F07  208107  212507  182007  232607 
+     35      35      33      33      32      32      31      30      29      29 
+ A15707  A16F07  A25131  206607  A22U07  147007  170807  A10J07  A10U07  144307 
+     29      29      29      28      28      27      27      27      27      26 
+ A14D07  A20F07  A30B07  A33J07  162807  209007  218707  A21D07  A22007  A24Z07 
+     26      26      26      26      25      25      25      25      25      25 
+ 115713  204507  A16R07  A21307  A23907  A36D31  A37O07  163507  217007 (Other) 
+     24      24      24      24      24      24      24      23      22     763 </code></pre>
+<pre class="r"><code># Remove batch effects
+v &lt;- voom(dge, design, plot = TRUE)</code></pre>
+<p><img src="figure/batch_correction.Rmd/unnamed-chunk-6-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>genus_cpm_corrected &lt;- removeBatchEffect(v, batch = batch, design = design)</code></pre>
+<pre><code>Coefficients not estimable: batch162 batch163 </code></pre>
+<pre><code>Warning: Partial NA coefficients for 332 probe(s)</code></pre>
+<pre class="r"><code># check for negative results
+genus_cpm_corrected[genus_cpm_corrected &lt; 0] %&gt;% length()</code></pre>
+<pre><code>[1] 9202</code></pre>
+<pre class="r"><code># what is lowest negative value?
+genus_cpm_corrected %&gt;% min()</code></pre>
+<pre><code>[1] -78.4372</code></pre>
+<pre class="r"><code># add correction factor to eliminate negative values
+genus_cpm_corrected_noneg &lt;- as.matrix(genus_cpm_corrected) + 31
+genus_cpm_corrected_noneg %&gt;% min()</code></pre>
+<pre><code>[1] -47.4372</code></pre>
+<pre class="r"><code># check for missing results
+summary(as.factor(is.finite(genus_cpm_corrected_noneg)))</code></pre>
+<pre><code>   TRUE 
+1626800 </code></pre>
+<pre class="r"><code># save results as ExpressionSet
+# first need variable annotation
+v_metadata &lt;- data.frame(
+  labelDescription = colnames(clindat_genus_cpm_filt),
+  row.names = colnames(clindat_genus_cpm_filt))
+
+# make annotated phenoData
+phenoData &lt;- new(&quot;AnnotatedDataFrame&quot;, 
+                 data = clindat_genus_cpm_filt, 
+                 varMetadata = v_metadata)
+phenoData</code></pre>
+<pre><code>An object of class &#39;AnnotatedDataFrame&#39;
+  rowNames: TCGA-BH-A5IZ TCGA-BH-A0BM ... TCGA-FY-A3BL (4900 total)
+  varLabels: name totreads ... tcga_proj (79 total)
+  varMetadata: labelDescription</code></pre>
+<pre class="r"><code># convert expression data to matrix format
+genus_cpm_mat &lt;- genus_cpm_corrected_noneg %&gt;% as.matrix()
+
+# create global annotation
+annotation &lt;- as.character(&quot;Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction&quot;)
+
+# assemble expressionset
+genus_es &lt;- ExpressionSet(
+  assayData = genus_cpm_mat,
+  phenoData = phenoData,
+  annotation = annotation)
+genus_es</code></pre>
+<pre><code>ExpressionSet (storageMode: lockedEnvironment)
+assayData: 332 features, 4900 samples 
+  element names: exprs 
+protocolData: none
+phenoData
+  sampleNames: TCGA-BH-A5IZ TCGA-BH-A0BM ... TCGA-FY-A3BL (4900 total)
+  varLabels: name totreads ... tcga_proj (79 total)
+  varMetadata: labelDescription
+featureData: none
+experimentData: use &#39;experimentData(object)&#39;
+Annotation: Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction </code></pre>
+<pre class="r"><code># save
+saveRDS(genus_es, &quot;corrected_genus_cpm_expressionset.rds&quot;)</code></pre>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span> Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+<pre><code>R version 4.0.1 (2020-06-06)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Catalina 10.15.7
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] edgeR_3.30.3        ggpubr_0.4.0        limma_3.44.3       
+ [4] Matrix.utils_0.9.8  Matrix_1.2-18       Biobase_2.48.0     
+ [7] BiocGenerics_0.34.0 forcats_0.5.0       stringr_1.4.0      
+[10] dplyr_1.0.2         purrr_0.3.4         readr_1.4.0        
+[13] tidyr_1.1.2         tibble_3.0.4        ggplot2_3.3.2      
+[16] tidyverse_1.3.0     workflowr_1.6.2    
+
+loaded via a namespace (and not attached):
+ [1] httr_1.4.2        jsonlite_1.7.1    carData_3.0-4     modelr_0.1.8     
+ [5] assertthat_0.2.1  cellranger_1.1.0  yaml_2.2.1        pillar_1.4.7     
+ [9] backports_1.2.0   lattice_0.20-41   glue_1.4.2        digest_0.6.27    
+[13] promises_1.1.1    ggsignif_0.6.0    rvest_0.3.6       colorspace_2.0-0 
+[17] cowplot_1.1.0     htmltools_0.5.0   httpuv_1.5.4      pkgconfig_2.0.3  
+[21] broom_0.7.2       haven_2.3.1       scales_1.1.1      whisker_0.4      
+[25] openxlsx_4.2.3    later_1.1.0.1     rio_0.5.16        git2r_0.27.1     
+[29] farver_2.0.3      generics_0.1.0    grr_0.9.5         car_3.0-10       
+[33] ellipsis_0.3.1    withr_2.3.0       cli_2.2.0         magrittr_2.0.1   
+[37] crayon_1.3.4      readxl_1.3.1      evaluate_0.14     fs_1.5.0         
+[41] fansi_0.4.1       rstatix_0.6.0     xml2_1.3.2        foreign_0.8-80   
+[45] tools_4.0.1       data.table_1.13.2 hms_0.5.3         lifecycle_0.2.0  
+[49] locfit_1.5-9.4    munsell_0.5.0     reprex_0.3.0      zip_2.1.1        
+[53] compiler_4.0.1    rlang_0.4.9       grid_4.0.1        rstudioapi_0.13  
+[57] labeling_0.4.2    rmarkdown_2.5     gtable_0.3.0      abind_1.4-5      
+[61] DBI_1.1.0         curl_4.3          R6_2.5.0          gridExtra_2.3    
+[65] lubridate_1.7.9.2 knitr_1.30        rprojroot_2.0.2   stringi_1.5.3    
+[69] Rcpp_1.0.5        vctrs_0.3.5       dbplyr_2.0.0      tidyselect_1.1.0 
+[73] xfun_0.19        </code></pre>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+http://docs.mathjax.org/en/latest/configuration.html.  This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open')
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
