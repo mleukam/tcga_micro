@@ -18,7 +18,7 @@ immune correlates table provided by Nelly. Taxonomy data repaired by filling mis
 * [Collect Tables](collect_tables.html) - get individual results from Agamemnon into a single table for eeach project (run on O2). Repair taxonomy with no missing taxa.
 * [TCGA Data Prep](tcga_data_prep.html) - change rownames to TCGA legacy barcodes. Get full TCGA barcodes for batch correction. Add in clinical and immune correlate data. Save output in list structure. Filter cases for primary tumors only and eliminate second biopsies from cases with multiple tissue biopsies.
 * [Derive Variables](derive_vars.html) - calculate measures of diversity, richness, high level taxonomy, and other basic descriptive summary variables for later analysis.
-* [Batch Correction](batch_correction.Rmd) - log transformation, normalization, and batch correction by sequencing center and plate using limma model.
+* [Batch Correction](batch_correction.html) - log transformation, normalization, and batch correction by sequencing center and plate using limma model.
 
 ## Immune correlates
 
