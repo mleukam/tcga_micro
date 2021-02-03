@@ -15,6 +15,10 @@ rm(list=ls())
 set.seed(818)
 ```
 
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
 Load packages
 ```{r}
 # data cleaning
@@ -24,10 +28,6 @@ library(Matrix.utils)
 library(limma)
 library(ggpubr)
 library(edgeR)
-```
-
-```{r}
-knitr::opts_chunk$set(eval = FALSE)
 ```
 
 Setup on local
@@ -254,59 +254,6 @@ tcga_counts$counts$taxid$STAD
 ```
 
 ## Data Cleaning
-
-#### Repair missing kingdom/phylum data
-```{r}
-#### NOTE ####
-# This was done prior to collecting tables and DOES NOT need to be repeated
-# Originally written here and left for record keeping 
-setwd("~/Projects/tcga_micro")
-# read in phylogenetic tree from agamemnon
-taxonomy <- read_csv("data/tcga_proj_taxonomy.csv")
-
-# make repars to missing data in taxonomy tree
-# if "---" is present, replace with reasonable substitute with flag
-# eg Anelloviridae_Family
-taxonomy_nomissing <- taxonomy %>%
-  # all missing superkingdom data are viruses (manual check)
-  # viruses are not classified in the same system as cellular life
-  # will use term 'virus' for all viruses at superkingdom level
-  mutate(Superkingdom = ifelse(Superkingdom == "---", "Virus", Superkingdom)) %>%
-  # if genus is missing, fill in with a higher level
-  mutate(Genus = 
-    ifelse((Genus == "---" & Family != "---"), paste0(Family, "_Family"),
-      ifelse((Genus == "---" & Order != "---"), paste0(Order, "_Order"),
-        ifelse((Genus == "---" & Class != "---"), paste0(Class, "_Class"),
-          ifelse((Genus == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
-            ifelse((Genus == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
-            Genus)))))) %>%
-  # if family is missing, fill in with a higher level
-  mutate(Family = 
-    ifelse((Family == "---" & Order != "---"), paste0(Order, "_Order"),
-      ifelse((Family == "---" & Class != "---"), paste0(Class, "_Class"),
-        ifelse((Family == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
-          ifelse((Family == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
-          Family))))) %>%
-  # if order is missing, fill in with a higher level
-  mutate(Order = 
-      ifelse((Order == "---" & Class != "---"), paste0(Class, "_Class"),
-        ifelse((Order == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
-          ifelse((Order == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
-          Order)))) %>%
-  # if class is missing, fill in with a higher level
-  mutate(Class = 
-      ifelse((Class == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
-        ifelse((Class == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
-          Class))) %>%
-  # if phylum is missing, fill in with a higher level
-  mutate(Phylum = 
-      ifelse((Phylum == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
-          Phylum)) 
-
-# save copy
-taxonomy_nomissing %>% saveRDS("data/tcga_proj_taxonomy_nomissing.rds")
-taxonomy_nomissing %>% write_csv("data/tcga_proj_taxonomy_nomissing.csv")
-```
 
 #### Convert to CPM
 https://rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/#:~:text=Count%20up%20the%20total%20reads,of%20the%20gene%2C%20in%20kilobases.
