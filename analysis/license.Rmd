@@ -7,15 +7,4 @@ editor_options:
   chunk_output_type: console
 ---
 
-What license are you using for your code? See [choosealicense.com][choose] for
-help deciding. It's a convention to save a file `LICENSE` in the root of your
-Git repo that contains the license text.
-
-What license are you using for the written content on your site? It is
-traditional to choose a [Creative Commons][cc] license for this type of content.
-
-[choose]: http://choosealicense.com/
-[cc]: https://creativecommons.org/choose/
-
-How should others cite your work? It's a convention to save a file `CITATION`
-in the root of your Git repo that contains the citation information.
+This work is yet unpublished and is PRIVATE and CONFIDENTIAL. If you have not been explicitly invited to view this lab notebook by the author, any license for further use of the analysis plan and code within should not be assumed. None of the code or analysis plan contained in this notebook is allowed to be used for any commercial purpose not otherwise explicitly allowed by the authors. Please contact the author at mleukam@gmail.com if you would like to cooperate with the research described within.
