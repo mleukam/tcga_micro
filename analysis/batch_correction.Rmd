@@ -22,7 +22,7 @@ set.seed(818)
 ```
 
 Load packages
-```{r message=FALSE}
+```{r message=FALSE, warning=FALSE}
 # data cleaning
 library(tidyverse)
 library(Biobase)
@@ -31,8 +31,6 @@ library(limma)
 library(ggpubr)
 library(edgeR)
 ```
-
-## Batch Correction
 
 From the manual for limma::removeBatchEffect
 
@@ -46,6 +44,7 @@ The function (in effect) fits a linear model to the data, including both batches
 The data object x can be of any class for which lmFit works. If x contains weights, then these will be used in estimating the batch effects.
 ```
 
+## Data Prep
 ```{r}
 # read in counts from tcga_data_prep
 tcga_counts <- readRDS("data/mode2_tcga_counts_list_clean.rds")
@@ -83,8 +82,9 @@ colnames(cpm_clindat)
 cpm_clindat[1:5, 1:5]
 ```
 
-#### Genus Counts Corrected
+## Genus Batch Correction
 ```{r}
+set.seed(818)
 # start with genus as code test
 # get counts to set up limma model
 genus_cpm <- cpm_list$genus_cpm %>%
@@ -236,11 +236,11 @@ design <- model.matrix(~ 0 + TCGA_)
 rownames(design) <- rnames
 head(design)
 
-# Include sequencing center / plate as a batch variable to the model
+# include sequencing center / plate as a batch variable to the model
 batch <- as.factor(clindat_genus_cpm_filt$batch)
 summary(batch)
 
-# Remove batch effects
+# remove batch effects
 v <- voom(dge, design, plot = TRUE)
 genus_cpm_corrected <- removeBatchEffect(v, batch = batch, design = design)
 
@@ -249,7 +249,7 @@ genus_cpm_corrected[genus_cpm_corrected < 0] %>% length()
 # what is lowest negative value?
 genus_cpm_corrected %>% min()
 # add correction factor to eliminate negative values
-genus_cpm_corrected_noneg <- as.matrix(genus_cpm_corrected) + 31
+genus_cpm_corrected_noneg <- as.matrix(genus_cpm_corrected) + 79
 genus_cpm_corrected_noneg %>% min()
 # check for missing results
 summary(as.factor(is.finite(genus_cpm_corrected_noneg)))
