@@ -1,7 +1,7 @@
 ---
 title: "Correlates and Models on Genus"
 author: "Michael Leukam"
-date: '2020-09-07'
+date: '2021-02-02'
 output:
   workflowr::wflow_html: default
 editor_options:
@@ -18,10 +18,6 @@ set.seed(818)
 
 Load packages
 ```{r}
-# data import, cleaning, export
-library(tidyverse)
-library(writexl)
-
 # correlations and modeling
 library(broom)
 library(caret)
@@ -36,18 +32,16 @@ library(FactoMineR)
 library(survival)
 library(survminer)
 library(ComplexHeatmap)
+
+# data import, cleaning, export
+library(tidyverse)
+library(writexl)
 ```
 
 Read in data
 Results of derive_vars.Rmd
 ```{r}
 genus_analysis_list <- readRDS("data/genus_analysis_list.rds")
-
-# test variables
-imm_cor <- genus_analysis_list$imm_cor$ACC %>% print()
-clindat <- genus_analysis_list$clindat$ACC %>% print()
-genus_counts <- genus_analysis_list$genus_cpm_list$ACC %>% print()
-dervars <- genus_analysis_list$genus_alpha$ACC %>% print()
 ```
 
 ## Diversity correlations
@@ -56,23 +50,24 @@ dervars <- genus_analysis_list$genus_alpha$ACC %>% print()
 Setup
 ```{r}
 # define starting variables
-alpha_list <- genus_analysis_list$genus_alpha %>%
-  .[-which(names(.) == "LUAD")] %>%  # missing high level data from LUAD
-  .[-which(names(.) == "BLCA")] %>% # duplicate row names (multiple biopsies?)
-  .[-which(names(.) == "PRAD")] # duplicate row names (multiple biopsies?)
+alpha_list <- genus_analysis_list$corrected_genus_alpha # %>%
+  # .[-which(names(.) == "LUAD")] %>%  # missing high level data from LUAD
+  # .[-which(names(.) == "BLCA")] %>% # duplicate row names (multiple biopsies?)
+  # .[-which(names(.) == "PRAD")] # duplicate row names (multiple biopsies?)
 str(alpha_list, max.level = 2)
 
 imm_cor_list <- genus_analysis_list$imm_cor %>%
   .[names(alpha_list)]
 str(imm_cor_list, max.level = 2)
 
-king_list <- genus_analysis_list$high_level_vars %>%
+king_list <- genus_analysis_list$corrected_high_level_vars %>%
   .[names(alpha_list)]
 str(king_list, max.level = 2)
 
-alpha_element <- genus_analysis_list$genus_alpha$STAD %>% print()
-imm_cor_element <- genus_analysis_list$imm_cor$STAD %>% print()
-king_element <- genus_analysis_list$high_level_vars$STAD %>% print()
+# test variables
+alpha_element <- genus_analysis_list$corrected_genus_alpha$LUAD %>% print()
+imm_cor_element <- genus_analysis_list$imm_cor$LUAD %>% print()
+king_element <- genus_analysis_list$corrected_high_level_vars$LUAD %>% print()
 
 # combine kingdom variables and derived vars
 dervars_high_level <- function(alpha_element, king_element){
@@ -83,8 +78,8 @@ dervars_list <- map2(alpha_list, king_list, dervars_high_level)
 str(dervars_list, max.level = 3)
 
 # test variables
-dervars_element <- dervars_list$STAD %>% print()
-imm_cor_element <- imm_cor_list$STAD %>% print()
+dervars_element <- dervars_list$LUAD %>% print()
+imm_cor_element <- imm_cor_list$LUAD %>% print()
 
 # whole TCGA correlations
 dervars_combined <- dervars_list %>% bind_rows() %>% print()
@@ -98,22 +93,19 @@ imm_cor_combined_df <- dervars_combined %>%
                 -invsimpson,
                 -pielou_evenness, 
                 -rar_rich,
-                -viral,
+                -viruses,
                 -archaea,
                 -bacteria,
                 -eukaryota,
-                -microbe_cpm,
-                -frac_viral,
+                -microbial_cpm,
+                -frac_viruses,
                 -frac_archaea,
                 -frac_bacteria,
                 -frac_eukaryota,
                 # select out text-based factors
                 -`TCGA Study`,
                 -`Immune Subtype`,
-                -`TCGA Subtype`,
-                # select out missing data factors
-                -`NA`,
-                -`frac_NA`) %>%
+                -`TCGA Subtype`) %>%
   print()
 
 # define function
@@ -130,12 +122,12 @@ imm_cor_df_maker <- function(dervars_element, imm_cor_element){
                 -invsimpson,
                 -pielou_evenness, 
                 -rar_rich,
-                -viral,
+                -viruses,
                 -archaea,
                 -bacteria,
                 -eukaryota,
-                -microbe_cpm,
-                -frac_viral,
+                -microbial_cpm,
+                -frac_viruses,
                 -frac_archaea,
                 -frac_bacteria,
                 -frac_eukaryota,
@@ -154,12 +146,12 @@ imm_cor_df_maker <- function(dervars_element, imm_cor_element){
                 invsimpson,
                 pielou_evenness, 
                 rar_rich,
-                viral,
+                viruses,
                 archaea,
                 bacteria,
                 eukaryota,
-                microbe_cpm,
-                frac_viral,
+                microbial_cpm,
+                frac_viruses,
                 frac_archaea,
                 frac_bacteria,
                 frac_eukaryota) %>%
@@ -184,7 +176,7 @@ map(imm_cor_dfs, function(imm_col){
   map(as.data.frame(imm_col), ~ summary(as.factor(is.na(.))))
 }) %>%
   as_tibble() %>%
-  print()
+  View()
 ```
 
 ```{r}
@@ -222,8 +214,11 @@ combined_spearman <- map(combined_tbl, function(df){
     unnest(r_test) %>%
     dplyr::rename(summary_var = x, imm_cor = y) %>%
     mutate(p_adj_fdr = case_when(
-      is.na(.$p.value) == FALSE ~ p.adjust(.$p.value)))
+      is.na(.$p.value) == FALSE ~ p.adjust(.$p.value))) %>%
+    select(summary_var, imm_cor, p_adj_fdr, everything()) %>%
+    arrange(p_adj_fdr)
     })  
+combined_spearman
 
 combined_pearson <- map(combined_tbl, function(df){
   cor_tab <- var_pairs %>% 
@@ -237,34 +232,15 @@ combined_pearson <- map(combined_tbl, function(df){
     unnest(r_test) %>%
     dplyr::rename(summary_var = x, imm_cor = y) %>%
     mutate(p_adj_fdr = case_when(
-      is.na(.$p.value) == FALSE ~ p.adjust(.$p.value)))
-    })  
-
-# clear out empty correlation tables
-combined_spearman$UVM <- NULL
-combined_spearman$PAAD <- NULL
-combined_pearson$UVM <- NULL
-combined_pearson$PAAD <- NULL
-
-cleaned_spearman <- map(combined_spearman, function(df){
-  df %>% 
-    dplyr::select(summary_var, 
-                  imm_cor, 
-                  estimate, 
-                  p_adj_fdr, 
-                  p.value, 
-                  statistic, 
-                  method, 
-                  alternative) %>%
+      is.na(.$p.value) == FALSE ~ p.adjust(.$p.value))) %>%
+    select(summary_var, imm_cor, p_adj_fdr, everything()) %>%
     arrange(p_adj_fdr)
-}) 
+    })  
+combined_pearson
 
-write_xlsx(cleaned_spearman, "output/tcga_correlations_spearman.xlsx")
-
-cleaned_pearson <- map(combined_pearson, function(df){
-  df %>% dplyr::select(summary_var, imm_cor, estimate, p_adj_fdr, p.value, statistic, method, alternative)
-}) 
-write_xlsx(cleaned_pearson, "output/tcga_correlations_pearson.xlsx")
+# write out results
+write_xlsx(combined_spearman, "output/tcga_batchcorrected_correlations_spearman.xlsx")
+write_xlsx(combined_pearson, "output/tcga_batchcorrected_correlations_pearson.xlsx")
 
 
 # create global combined dataframe
@@ -274,18 +250,20 @@ combined_global <- imm_cor_combined_df %>%
 
 global_cor_tab <- var_pairs %>% 
   mutate(
-    r_test = purrr::map2(x, 
-                         y, 
-                         possibly(~ stats::cor.test(combined_global[[.x]],
-                                                    combined_global[[.y]], 
-                                                    method = "spearman"),
-                                  otherwise = data.frame())),
+    r_test = purrr::map2(x, y, possibly(~ stats::cor.test(
+      combined_global[[.x]],
+      combined_global[[.y]], 
+      method = "spearman"),
+      otherwise = data.frame())),
     r_test = purrr::map(r_test, tidy)) %>%
   unnest(r_test) %>%
   dplyr::rename(summary_var = x, imm_cor = y) %>%
   mutate(p_adj_fdr = case_when(is.na(.$p.value) == FALSE ~ p.adjust(.$p.value))) %>%
+  dplyr::select(summary_var, imm_cor, p_adj_fdr, everything()) %>%
   arrange(p_adj_fdr) 
+global_cor_tab
 
+write_xlsx(global_cor_tab, "output/tcga_global_batchcorrected_correlations_spearman.xlsx")
 ```
 
 #### Plots of summary variables
@@ -315,13 +293,13 @@ map(inputvars, function(inputvar){
              y = inputvar, 
              fill = tcga_proj, 
              color = tcga_proj)) +
-    geom_violin(scale = "width") +
-    geom_boxplot(width = 0.15, fill = "white") +
-    theme_classic2() +
-    theme(legend.position = "none") +
-    theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-    xlab("") +
-    ggtitle(paste0("Genus ", inputvar, " by tumor type"))
+    geom_violin(scale = "width")
+    # geom_boxplot(width = 0.15, fill = "white") +
+    # theme_classic2() +
+    # theme(legend.position = "none") +
+    # theme(axis.text.x = element_text(angle = 60, hjust=1)) +
+    # xlab("") +
+    # ggtitle(paste0("Genus ", inputvar, " by tumor type"))
 })
   
 dervars_unified_tbl %>% 
@@ -387,8 +365,8 @@ dervars_unified_tbl %>%
   ggtitle("Genus rarified richness by tumor type")
 
 dervars_unified_tbl %>% 
-  ggplot(aes(x = reorder(tcga_proj, viral, mean), 
-             y = viral, 
+  ggplot(aes(x = reorder(tcga_proj, viruses, mean), 
+             y = viruses, 
              fill = tcga_proj, 
              color = tcga_proj)) +
   geom_violin(scale = "width") +
@@ -452,8 +430,8 @@ dervars_unified_tbl %>%
   ggtitle("Eukaryota CPM by tumor")
 
 dervars_unified_tbl %>% 
-  ggplot(aes(x = reorder(tcga_proj, microbe_cpm, mean), 
-             y = microbe_cpm, 
+  ggplot(aes(x = reorder(tcga_proj, microbial_cpm, mean), 
+             y = microbial_cpm, 
              fill = tcga_proj, 
              color = tcga_proj)) +
   geom_violin(scale = "width") +
@@ -465,21 +443,8 @@ dervars_unified_tbl %>%
   ggtitle("Any microbial CPM by tumor")
 
 dervars_unified_tbl %>% 
-  ggplot(aes(x = reorder(tcga_proj, microbe_cpm, mean), 
-             y = log(microbe_cpm), 
-             fill = tcga_proj, 
-             color = tcga_proj)) +
-  geom_violin(scale = "width") +
-  geom_boxplot(width = 0.15, fill = "white") +
-  theme_classic2() +
-  theme(legend.position = "none") +
-  theme(axis.text.x = element_text(angle = 60, hjust=1)) +
-  xlab("") +
-  ggtitle("Any microbial log(CPM) by tumor")
-
-dervars_unified_tbl %>% 
-  ggplot(aes(x = reorder(tcga_proj, frac_viral, mean), 
-             y = frac_viral, 
+  ggplot(aes(x = reorder(tcga_proj, frac_viruses, mean), 
+             y = frac_viruses, 
              fill = tcga_proj, 
              color = tcga_proj)) +
   geom_violin(scale = "width") +
@@ -532,21 +497,21 @@ dervars_unified_tbl %>%
 
 #### Plots of correlates of summary variables
 ```{r}
-map(cleaned_pearson, function(df){
+map(combined_spearman, function(df){
   df %>%
     dplyr::filter(p_adj_fdr < 0.1)
 })
 
 # Will first look at melanoma given CBT trial analysis
-cleaned_pearson$SKCM %>% arrange(p_adj_fdr) %>% slice(1:3) %>% print()
+combined_pearson$SKCM %>% arrange(p_adj_fdr) %>% slice(1:3) %>% View()
 
 combined_tbl %>% 
   .[["SKCM"]] %>%
-  dplyr::select(frac_viral, plasma_cells = `Plasma Cells`) %>%
-  ggplot(aes(x = frac_viral, y = plasma_cells)) +
+  dplyr::select(eukaryota, stromal_fraction = `Stromal Fraction`) %>%
+  ggplot(aes(x = eukaryota, y = stromal_fraction)) +
     geom_point() +
     geom_smooth() +
-    ggtitle("Melanoma plasma cells vs viral fraction")
+    ggtitle("Melanoma stromal fraction vs eukaryota")
 
 combined_tbl %>% 
   .[["SKCM"]] %>%
