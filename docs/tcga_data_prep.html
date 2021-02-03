@@ -555,16 +555,16 @@ data/tcga_counts_list_mode2.rds
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree1ac37359c28622223f49bd3cf96e118a3b548115targetblank1ac3735a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/1ac37359c28622223f49bd3cf96e118a3b548115" target="_blank">1ac3735</a> </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree7cd8a82972bf005886f17248440e470eea423378targetblank7cd8a82a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/7cd8a82972bf005886f17248440e470eea423378" target="_blank">7cd8a82</a> </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree1ac37359c28622223f49bd3cf96e118a3b548115targetblank1ac3735a" class="panel-collapse collapse">
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree7cd8a82972bf005886f17248440e470eea423378targetblank7cd8a82a" class="panel-collapse collapse">
 <div class="panel-body">
 <p>
 Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/1ac37359c28622223f49bd3cf96e118a3b548115" target="_blank">1ac3735</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/7cd8a82972bf005886f17248440e470eea423378" target="_blank">7cd8a82</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
 </p>
 <p>
 Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
@@ -612,7 +612,6 @@ Ignored files:
 
 Untracked files:
     Untracked:  analysis/africa_csf.Rmd
-    Untracked:  analysis/batch_correction.Rmd
     Untracked:  code/get_reads_v2.sh
 
 Unstaged changes:
@@ -656,6 +655,40 @@ Message
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/7cd8a82972bf005886f17248440e470eea423378/analysis/tcga_data_prep.Rmd" target="_blank">7cd8a82</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+working code for initial data cleaning
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/mleukam/tcga_micro/be201688e26f2b1d57a71073b9cf0ebd3e980ab9/docs/tcga_data_prep.html" target="_blank">be20168</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+Build site.
+</td>
+</tr>
 <tr>
 <td>
 Rmd
@@ -1149,220 +1182,6 @@ tcga_counts[[&quot;cpm_counts&quot;]] &lt;- cpm_counts
 str(tcga_counts, max.level = 2)
 
 saveRDS(tcga_counts, &quot;data/mode2_tcga_counts_list_clean.rds&quot;)</code></pre>
-</div>
-</div>
-<div id="alt-start-batch-correction" class="section level2">
-<h2>ALT START Batch Correction</h2>
-<p>From the manual for limma::removeBatchEffect:</p>
-<p>This function is useful for removing batch effects, associated with hybridization time or other technical variables, prior to clustering or unsupervised analysis such as PCA, MDS or heatmaps. It is not intended to use with linear modelling. For linear modelling, it is better to include the batch factors in the linear model.</p>
-<p>The design matrix is used to describe comparisons between the samples, for example treatment effects, which should not be removed.</p>
-<p>The function (in effect) fits a linear model to the data, including both batches and regular treatments, then removes the component due to the batch effects.</p>
-<p>The data object x can be of any class for which lmFit works. If x contains weights, then these will be used in estimating the batch effects.</p>
-<pre class="r"><code>tcga_counts &lt;- readRDS(&quot;data/mode2_tcga_counts_list_clean.rds&quot;)
-str(tcga_counts, max.level = 2)
-str(tcga_counts$cpm_counts, max.level = 2)
-
-# pull out CPM counts
-cpm_list &lt;- tcga_counts$cpm_counts
-str(cpm_list, max.level = 2)
-
-# get linked clinical data to set up limma model
-# convert to dataframe with subjects in rows
-cpm_clindat &lt;- tcga_counts$cpm_counts$cpm_clindat %&gt;%
-  # collapse list to single tbl
-  enframe() %&gt;%
-  unnest(value) %&gt;%
-  # remove duplicates (very few)
-  distinct(tcga_barcode, .keep_all = TRUE) %&gt;%
-  # create variable for plate and center == batch
-  separate(tcga_full_barcode, 
-           into = c(NA, NA, NA, NA, NA, &quot;plate&quot;, &quot;center&quot;), 
-           sep = &quot;-&quot;, 
-           remove = FALSE) %&gt;%
-  unite(&quot;batch&quot;, 
-        c(&quot;plate&quot;, &quot;center&quot;), 
-        sep = &quot;&quot;, 
-        remove = FALSE) %&gt;%
-  # convert to df with rownames
-  as.data.frame() %&gt;%
-  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
-  print()</code></pre>
-<div id="genus" class="section level4">
-<h4>Genus</h4>
-<pre class="r"><code># start with genus as code test
-# get counts to set up limma model
-genus_cpm &lt;- cpm_list$genus_cpm %&gt;%
-  # collapse list to single tbl
-  bind_rows() %&gt;%
-  # remove duplicates (very few, about 30)
-  distinct(tcga_barcode, .keep_all = TRUE) %&gt;%
-  # convert to matrix and rotate
-  # cases are in columns and features are in rows
-  as.data.frame() %&gt;%
-  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
-  as.matrix() %&gt;%
-  t() 
-
-# check results
-dim(genus_cpm)
-genus_cpm[1:5, 1:5]
-
-# repair clinical data to match genus cpm
-clindat_genus_tbl &lt;- cpm_clindat %&gt;%
-  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
-  as_tibble()
-clindat_genus_cpm &lt;- enframe(colnames(genus_cpm)) %&gt;%
-  dplyr::select(tcga_barcode = value) %&gt;%
-  left_join(clindat_genus_tbl) %&gt;%
-  as.data.frame() %&gt;%
-  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
-  print()
-
-# ensure that rows and columns are matched
-identical(colnames(genus_cpm), rownames(clindat_genus_cpm))
-length(rownames(clindat_genus_cpm))
-length(colnames(genus_cpm))</code></pre>
-<p>Plots - can skip</p>
-<pre class="r"><code># ensure that data approximates normal distribution for limma
-# make tidy dataframe for plotting
-tidy_generator &lt;- function(listelement){
-  listelement %&gt;% 
-    pivot_longer(-tcga_barcode, names_to = &quot;genus&quot;, values_to = &quot;counts&quot;) %&gt;%
-    arrange(desc(counts))
-}
-# make tidy frames with cpm
-tidy_genera &lt;- map(cpm_list$genus_cpm, tidy_generator)
-
-# counts distribution
-counts_dist_plotter &lt;- function(df){
-  plot &lt;- df %&gt;%
-    ggplot(aes(x = counts, color = tcga_barcode)) +
-      geom_density() +
-      theme(legend.position = &quot;none&quot;)
-  
-}
-# plot raw distributions of cpm for each tumor type
-dist_plot_list &lt;- map(tidy_genera, counts_dist_plotter)
-do.call(ggarrange, dist_plot_list) %&gt;%
-  annotate_figure(., top = text_grob(&quot;Counts Distribution by Genus&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))
-          
-# log cpm distribution
-log_dist_plotter &lt;- function(df){
-  plot &lt;- df %&gt;%
-    mutate(lcounts = log2(counts)) %&gt;%
-    dplyr::filter(lcounts &gt; -100) %&gt;%
-    ggplot(aes(x = lcounts), color = tcga_barcode) +
-      geom_density() +
-      theme(legend.position = &quot;none&quot;) +
-      expand_limits(x = c(-20, 30))
-}
-# log cpm density plots
-log_plot_list &lt;- map(tidy_genera, log_dist_plotter)
-names(log_plot_list) &lt;- names(tidy_genera)
-do.call(ggarrange, log_plot_list) %&gt;%
-  annotate_figure(., top = text_grob(&quot;log(Counts) Distribution by Genus&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))
-
-# log counts have a more normal distribution. unlogged counts have right skew</code></pre>
-<p>Limma batch correction</p>
-<pre class="r"><code>#--------------------------------
-## VOOM NORMALIZATION AND BATCH CORRECTION WITH LIMMA ##
-
-# should pass non-log counts to voom
-# voom includes a log2 transformation
-# convert missing counts to 0
-summary(as.factor(is.na(genus_cpm)))
-summary(as.factor(is.nan(genus_cpm)))
-genus_cpm[is.na(genus_cpm)] &lt;- 0
-summary(as.factor(is.na(genus_cpm)))
-summary(as.factor(is.nan(genus_cpm)))
-summary(as.factor(is.finite(genus_cpm)))
-genus_cpm_finite &lt;- genus_cpm[, genus_cpm[genus_cpm == Inf]]
-
-# eliminate samples with library size 0
-dim(genus_cpm)
-genus_cpm_filt &lt;- genus_cpm[, colSums(genus_cpm != 0) &gt; 0]
-dim(genus_cpm_filt)
-
-# repair clinical data to match genus cpm after cases were dropped
-clindat_genus_tbl &lt;- cpm_clindat %&gt;%
-  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
-  as_tibble()
-clindat_genus_cpm_filt &lt;- enframe(colnames(genus_cpm_filt)) %&gt;%
-  dplyr::select(tcga_barcode = value) %&gt;%
-  left_join(clindat_genus_tbl) %&gt;%
-  as.data.frame() %&gt;%
-  column_to_rownames(var = &quot;tcga_barcode&quot;) %&gt;%
-  print()
-
-dim(clindat_genus_cpm_filt)
-
-# ensure that rows and columns are matched
-identical(colnames(genus_cpm_filt), rownames(clindat_genus_cpm_filt))
-length(rownames(clindat_genus_cpm_filt))
-length(colnames(genus_cpm_filt))
-
-# create DGEList
-dge &lt;- DGEList(counts = genus_cpm_filt)
-
-# apply TMM normalization to DGE
-dge &lt;- calcNormFactors(dge)
-
-# set up design matrix
-# design matrix should include real differences to be preserved
-# Rob Knight paper used tumor type as real difference
-# I will do the same
-rnames &lt;- rownames(clindat_genus_cpm_filt)
-TCGA_ &lt;- clindat_genus_cpm_filt$tcga_proj %&gt;% as.factor()
-summary(TCGA_)
-design &lt;- model.matrix(~ 0 + TCGA_)
-rownames(design) &lt;- rnames
-head(design)
-
-# Include sequencing center / plate as a batch variable to the model
-batch &lt;- as.factor(clindat_genus_cpm_filt$batch)
-summary(batch)
-
-# Remove batch effects
-v &lt;- voom(dge, design, plot = TRUE)
-genus_cpm_corrected &lt;- removeBatchEffect(v, batch = batch, design = design)
-
-# check for negative results
-genus_cpm_corrected[genus_cpm_corrected &lt; 0] %&gt;% length()
-# what is lowest negative value?
-genus_cpm_corrected %&gt;% min()
-# add correction factor to eliminate negative values
-genus_cpm_corrected_noneg &lt;- as.matrix(genus_cpm_corrected) + 31
-genus_cpm_corrected_noneg %&gt;% min()
-# check for missing results
-summary(as.factor(is.finite(genus_cpm_corrected_noneg)))
-
-# save results as ExpressionSet
-# first need variable annotation
-v_metadata &lt;- data.frame(
-  labelDescription = colnames(clindat_genus_cpm_filt),
-  row.names = colnames(clindat_genus_cpm_filt))
-
-# make annotated phenoData
-phenoData &lt;- new(&quot;AnnotatedDataFrame&quot;, 
-                 data = clindat_genus_cpm_filt, 
-                 varMetadata = v_metadata)
-phenoData
-
-# convert expression data to matrix format
-genus_cpm_mat &lt;- genus_cpm_corrected_noneg %&gt;% as.matrix()
-
-# create global annotation
-annotation &lt;- as.character(&quot;Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction&quot;)
-
-# assemble expressionset
-genus_es &lt;- ExpressionSet(
-  assayData = genus_cpm_mat,
-  phenoData = phenoData,
-  annotation = annotation)
-genus_es
-
-# save
-saveRDS(genus_es, &quot;corrected_genus_cpm_expressionset.rds&quot;)</code></pre>
 <br>
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
