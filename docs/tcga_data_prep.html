@@ -555,16 +555,16 @@ data/tcga_counts_list_mode2.rds
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreeee33bd851a58ce508a5c71b313d5308d65025d8dtargetblankee33bd8a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/ee33bd851a58ce508a5c71b313d5308d65025d8d" target="_blank">ee33bd8</a> </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree1ac37359c28622223f49bd3cf96e118a3b548115targetblank1ac3735a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/1ac37359c28622223f49bd3cf96e118a3b548115" target="_blank">1ac3735</a> </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreeee33bd851a58ce508a5c71b313d5308d65025d8dtargetblankee33bd8a" class="panel-collapse collapse">
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree1ac37359c28622223f49bd3cf96e118a3b548115targetblank1ac3735a" class="panel-collapse collapse">
 <div class="panel-body">
 <p>
 Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/ee33bd851a58ce508a5c71b313d5308d65025d8d" target="_blank">ee33bd8</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/1ac37359c28622223f49bd3cf96e118a3b548115" target="_blank">1ac3735</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
 </p>
 <p>
 Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
@@ -612,6 +612,7 @@ Ignored files:
 
 Untracked files:
     Untracked:  analysis/africa_csf.Rmd
+    Untracked:  analysis/batch_correction.Rmd
     Untracked:  code/get_reads_v2.sh
 
 Unstaged changes:
@@ -655,6 +656,40 @@ Message
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/1ac37359c28622223f49bd3cf96e118a3b548115/analysis/tcga_data_prep.Rmd" target="_blank">1ac3735</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+working code for initial data cleaning
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/mleukam/tcga_micro/98a3482ec1739d00ca84cc1f7c72ed6e92a7fb02/docs/tcga_data_prep.html" target="_blank">98a3482</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+Build site.
+</td>
+</tr>
 <tr>
 <td>
 Rmd
@@ -735,68 +770,15 @@ initial commit
 <p>Clear the workspace and set seed</p>
 <pre class="r"><code>rm(list=ls())
 set.seed(818)</code></pre>
+<pre class="r"><code>knitr::opts_chunk$set(eval = FALSE)</code></pre>
 <p>Load packages</p>
 <pre class="r"><code># data cleaning
-library(tidyverse)</code></pre>
-<pre><code>Warning: package &#39;tidyverse&#39; was built under R version 4.0.2</code></pre>
-<pre><code>── Attaching packages ─────────────────────────────────────── tidyverse 1.3.0 ──</code></pre>
-<pre><code>✓ ggplot2 3.3.2     ✓ purrr   0.3.4
-✓ tibble  3.0.4     ✓ dplyr   1.0.2
-✓ tidyr   1.1.2     ✓ stringr 1.4.0
-✓ readr   1.4.0     ✓ forcats 0.5.0</code></pre>
-<pre><code>Warning: package &#39;tibble&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Warning: package &#39;tidyr&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Warning: package &#39;readr&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Warning: package &#39;dplyr&#39; was built under R version 4.0.2</code></pre>
-<pre><code>── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
-x dplyr::filter() masks stats::filter()
-x dplyr::lag()    masks stats::lag()</code></pre>
-<pre class="r"><code>library(Biobase)</code></pre>
-<pre><code>Loading required package: BiocGenerics</code></pre>
-<pre><code>Loading required package: parallel</code></pre>
-<pre><code>
-Attaching package: &#39;BiocGenerics&#39;</code></pre>
-<pre><code>The following objects are masked from &#39;package:parallel&#39;:
-
-    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
-    clusterExport, clusterMap, parApply, parCapply, parLapply,
-    parLapplyLB, parRapply, parSapply, parSapplyLB</code></pre>
-<pre><code>The following objects are masked from &#39;package:dplyr&#39;:
-
-    combine, intersect, setdiff, union</code></pre>
-<pre><code>The following objects are masked from &#39;package:stats&#39;:
-
-    IQR, mad, sd, var, xtabs</code></pre>
-<pre><code>The following objects are masked from &#39;package:base&#39;:
-
-    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
-    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
-    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
-    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
-    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
-    union, unique, unsplit, which, which.max, which.min</code></pre>
-<pre><code>Welcome to Bioconductor
-
-    Vignettes contain introductory material; view with
-    &#39;browseVignettes()&#39;. To cite Bioconductor, see
-    &#39;citation(&quot;Biobase&quot;)&#39;, and for packages &#39;citation(&quot;pkgname&quot;)&#39;.</code></pre>
-<pre class="r"><code>library(Matrix.utils)</code></pre>
-<pre><code>Warning: package &#39;Matrix.utils&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Loading required package: Matrix</code></pre>
-<pre><code>
-Attaching package: &#39;Matrix&#39;</code></pre>
-<pre><code>The following objects are masked from &#39;package:tidyr&#39;:
-
-    expand, pack, unpack</code></pre>
-<pre class="r"><code>library(limma)</code></pre>
-<pre><code>
-Attaching package: &#39;limma&#39;</code></pre>
-<pre><code>The following object is masked from &#39;package:BiocGenerics&#39;:
-
-    plotMA</code></pre>
-<pre class="r"><code>library(ggpubr)
+library(tidyverse)
+library(Biobase)
+library(Matrix.utils)
+library(limma)
+library(ggpubr)
 library(edgeR)</code></pre>
-<pre class="r"><code>knitr::opts_chunk$set(eval = FALSE)</code></pre>
 <p>Setup on local</p>
 <pre class="bash"><code>sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mjl62 ~/sshfs_mount/TCGA
 
@@ -1014,58 +996,6 @@ tcga_counts$counts$taxid$STAD</code></pre>
 </div>
 <div id="data-cleaning" class="section level2">
 <h2>Data Cleaning</h2>
-<div id="repair-missing-kingdomphylum-data" class="section level4">
-<h4>Repair missing kingdom/phylum data</h4>
-<pre class="r"><code>#### NOTE ####
-# This was done prior to collecting tables and DOES NOT need to be repeated
-# Originally written here and left for record keeping 
-setwd(&quot;~/Projects/tcga_micro&quot;)
-# read in phylogenetic tree from agamemnon
-taxonomy &lt;- read_csv(&quot;data/tcga_proj_taxonomy.csv&quot;)
-
-# make repars to missing data in taxonomy tree
-# if &quot;---&quot; is present, replace with reasonable substitute with flag
-# eg Anelloviridae_Family
-taxonomy_nomissing &lt;- taxonomy %&gt;%
-  # all missing superkingdom data are viruses (manual check)
-  # viruses are not classified in the same system as cellular life
-  # will use term &#39;virus&#39; for all viruses at superkingdom level
-  mutate(Superkingdom = ifelse(Superkingdom == &quot;---&quot;, &quot;Virus&quot;, Superkingdom)) %&gt;%
-  # if genus is missing, fill in with a higher level
-  mutate(Genus = 
-    ifelse((Genus == &quot;---&quot; &amp; Family != &quot;---&quot;), paste0(Family, &quot;_Family&quot;),
-      ifelse((Genus == &quot;---&quot; &amp; Order != &quot;---&quot;), paste0(Order, &quot;_Order&quot;),
-        ifelse((Genus == &quot;---&quot; &amp; Class != &quot;---&quot;), paste0(Class, &quot;_Class&quot;),
-          ifelse((Genus == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
-            ifelse((Genus == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
-            Genus)))))) %&gt;%
-  # if family is missing, fill in with a higher level
-  mutate(Family = 
-    ifelse((Family == &quot;---&quot; &amp; Order != &quot;---&quot;), paste0(Order, &quot;_Order&quot;),
-      ifelse((Family == &quot;---&quot; &amp; Class != &quot;---&quot;), paste0(Class, &quot;_Class&quot;),
-        ifelse((Family == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
-          ifelse((Family == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
-          Family))))) %&gt;%
-  # if order is missing, fill in with a higher level
-  mutate(Order = 
-      ifelse((Order == &quot;---&quot; &amp; Class != &quot;---&quot;), paste0(Class, &quot;_Class&quot;),
-        ifelse((Order == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
-          ifelse((Order == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
-          Order)))) %&gt;%
-  # if class is missing, fill in with a higher level
-  mutate(Class = 
-      ifelse((Class == &quot;---&quot; &amp; Phylum != &quot;---&quot;), paste0(Phylum, &quot;_Phylum&quot;),
-        ifelse((Class == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
-          Class))) %&gt;%
-  # if phylum is missing, fill in with a higher level
-  mutate(Phylum = 
-      ifelse((Phylum == &quot;---&quot; &amp; Superkingdom != &quot;---&quot;), paste0(Superkingdom, &quot;_Superkingdom&quot;),
-          Phylum)) 
-
-# save copy
-taxonomy_nomissing %&gt;% saveRDS(&quot;data/tcga_proj_taxonomy_nomissing.rds&quot;)
-taxonomy_nomissing %&gt;% write_csv(&quot;data/tcga_proj_taxonomy_nomissing.csv&quot;)</code></pre>
-</div>
 <div id="convert-to-cpm" class="section level4">
 <h4>Convert to CPM</h4>
 <p><a href="https://rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/#" class="uri">https://rna-seqblog.com/rpkm-fpkm-and-tpm-clearly-explained/#</a>:~:text=Count%20up%20the%20total%20reads,of%20the%20gene%2C%20in%20kilobases.</p>
