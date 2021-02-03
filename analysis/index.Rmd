@@ -13,8 +13,7 @@ Analysis of TCGA data using Agamemnon
 ## Data prep
 
 Read in data from Agememnon output. Supplement with clinical data from GDC and 
-immune correlates table provided by Nelly. Organize with listed nest structure
-and save for easy later access.
+immune correlates table provided by Nelly. Taxonomy data repaired by filling missing taxa with the lowest available taxonomic class above the missing level. Summary indices and high-level taxa counts (e.g. viral vs bacterial) calculated for each case. Cases filtered for primary tumors only and only one biopsy per case ID was kept. Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant added to all counts to eliminate negative values after batch correction.
 
 * [Collect Tables](collect_tables.html) - get individual results from Agamemnon into a single table for eeach project (run on O2). Repair taxonomy with no missing taxa.
 * [TCGA Data Prep](tcga_data_prep.html) - change rownames to TCGA legacy barcodes. Get full TCGA barcodes for batch correction. Add in clinical and immune correlate data. Save output in list structure. Filter cases for primary tumors only and eliminate second biopsies from cases with multiple tissue biopsies.
