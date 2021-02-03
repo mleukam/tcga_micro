@@ -515,16 +515,16 @@ This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreebf1256249525da5471eaf331dd1f532d979ef0d6targetblankbf12562a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/bf1256249525da5471eaf331dd1f532d979ef0d6" target="_blank">bf12562</a> </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree399647f9deec3d10a35120336a8ac6a1145b61b3targetblank399647fa"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/399647f9deec3d10a35120336a8ac6a1145b61b3" target="_blank">399647f</a> </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreebf1256249525da5471eaf331dd1f532d979ef0d6targetblankbf12562a" class="panel-collapse collapse">
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotree399647f9deec3d10a35120336a8ac6a1145b61b3targetblank399647fa" class="panel-collapse collapse">
 <div class="panel-body">
 <p>
 Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/bf1256249525da5471eaf331dd1f532d979ef0d6" target="_blank">bf12562</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/399647f9deec3d10a35120336a8ac6a1145b61b3" target="_blank">399647f</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
 </p>
 <p>
 Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
@@ -534,7 +534,6 @@ Ignored files:
     Ignored:    .DS_Store
     Ignored:    .Rhistory
     Ignored:    .Rproj.user/
-    Ignored:    analysis/figure/
     Ignored:    corrected_genus_cpm_expressionset.rds
     Ignored:    data/2021_01_11_readcounts.csv
     Ignored:    data/2021_01_20_readcounts.csv
@@ -622,6 +621,40 @@ Message
 Rmd
 </td>
 <td>
+<a href="https://github.com/mleukam/tcga_micro/blob/399647f9deec3d10a35120336a8ac6a1145b61b3/analysis/batch_correction.Rmd" target="_blank">399647f</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+normalization and batch correction working with limma
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/mleukam/tcga_micro/2f3e55821982c8179361356af65663fc33d92586/docs/batch_correction.html" target="_blank">2f3e558</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+Build site.
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
 <a href="https://github.com/mleukam/tcga_micro/blob/bf1256249525da5471eaf331dd1f532d979ef0d6/analysis/batch_correction.Rmd" target="_blank">bf12562</a>
 </td>
 <td>
@@ -652,21 +685,12 @@ normalization and batch correction working with limma
 set.seed(818)</code></pre>
 <p>Load packages</p>
 <pre class="r"><code># data cleaning
-library(tidyverse)</code></pre>
-<pre><code>Warning: package &#39;tidyverse&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Warning: package &#39;tibble&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Warning: package &#39;tidyr&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Warning: package &#39;readr&#39; was built under R version 4.0.2</code></pre>
-<pre><code>Warning: package &#39;dplyr&#39; was built under R version 4.0.2</code></pre>
-<pre class="r"><code>library(Biobase)
-library(Matrix.utils)</code></pre>
-<pre><code>Warning: package &#39;Matrix.utils&#39; was built under R version 4.0.2</code></pre>
-<pre class="r"><code>library(limma)
+library(tidyverse)
+library(Biobase)
+library(Matrix.utils)
+library(limma)
 library(ggpubr)
 library(edgeR)</code></pre>
-</div>
-<div id="batch-correction" class="section level2">
-<h2>Batch Correction</h2>
 <p>From the manual for limma::removeBatchEffect</p>
 <pre><code>This function is useful for removing batch effects, associated with hybridization time or other technical variables, prior to clustering or unsupervised analysis such as PCA, MDS or heatmaps. It is not intended to use with linear modelling. For linear modelling, it is better to include the batch factors in the linear model.
 
@@ -675,6 +699,9 @@ The design matrix is used to describe comparisons between the samples, for examp
 The function (in effect) fits a linear model to the data, including both batches and regular treatments, then removes the component due to the batch effects.
 
 The data object x can be of any class for which lmFit works. If x contains weights, then these will be used in estimating the batch effects.</code></pre>
+</div>
+<div id="data-prep" class="section level2">
+<h2>Data Prep</h2>
 <pre class="r"><code># read in counts from tcga_data_prep
 tcga_counts &lt;- readRDS(&quot;data/mode2_tcga_counts_list_clean.rds&quot;)
 str(tcga_counts, max.level = 2)</code></pre>
@@ -944,9 +971,11 @@ TCGA-WT-AB41 TCGA-WT-AB41-01A-11R-A41B-07 A41B07
 TCGA-E2-A15A TCGA-E2-A15A-01A-11R-A12D-07 A12D07
 TCGA-BH-A18K TCGA-BH-A18K-01A-11R-A12D-07 A12D07
 TCGA-A1-A0SF TCGA-A1-A0SF-01A-11R-A144-07 A14407</code></pre>
-<div id="genus-counts-corrected" class="section level4">
-<h4>Genus Counts Corrected</h4>
-<pre class="r"><code># start with genus as code test
+</div>
+<div id="genus-batch-correction" class="section level2">
+<h2>Genus Batch Correction</h2>
+<pre class="r"><code>set.seed(818)
+# start with genus as code test
 # get counts to set up limma model
 genus_cpm &lt;- cpm_list$genus_cpm %&gt;%
   # collapse list to single tbl
@@ -1171,7 +1200,7 @@ TCGA-E9-A1N5         0         0         0         0         0
 TCGA-AR-A24L         0         0         0         0         0
 TCGA-S3-AA15         0         0         0         0         0
 TCGA-D8-A27F         0         0         0         0         0</code></pre>
-<pre class="r"><code># Include sequencing center / plate as a batch variable to the model
+<pre class="r"><code># include sequencing center / plate as a batch variable to the model
 batch &lt;- as.factor(clindat_genus_cpm_filt$batch)
 summary(batch)</code></pre>
 <pre><code> A03407  A34R07  A00Z07  A11507  240307  184901  A24H07  185001  A13Q07  201607 
@@ -1194,7 +1223,7 @@ summary(batch)</code></pre>
      26      26      26      26      25      25      25      25      25      25 
  115713  204507  A16R07  A21307  A23907  A36D31  A37O07  163507  217007 (Other) 
      24      24      24      24      24      24      24      23      22     763 </code></pre>
-<pre class="r"><code># Remove batch effects
+<pre class="r"><code># remove batch effects
 v &lt;- voom(dge, design, plot = TRUE)</code></pre>
 <p><img src="figure/batch_correction.Rmd/unnamed-chunk-6-1.png" width="672" style="display: block; margin: auto;" /></p>
 <pre class="r"><code>genus_cpm_corrected &lt;- removeBatchEffect(v, batch = batch, design = design)</code></pre>
@@ -1207,9 +1236,9 @@ genus_cpm_corrected[genus_cpm_corrected &lt; 0] %&gt;% length()</code></pre>
 genus_cpm_corrected %&gt;% min()</code></pre>
 <pre><code>[1] -78.4372</code></pre>
 <pre class="r"><code># add correction factor to eliminate negative values
-genus_cpm_corrected_noneg &lt;- as.matrix(genus_cpm_corrected) + 31
+genus_cpm_corrected_noneg &lt;- as.matrix(genus_cpm_corrected) + 79
 genus_cpm_corrected_noneg %&gt;% min()</code></pre>
-<pre><code>[1] -47.4372</code></pre>
+<pre><code>[1] 0.5627965</code></pre>
 <pre class="r"><code># check for missing results
 summary(as.factor(is.finite(genus_cpm_corrected_noneg)))</code></pre>
 <pre><code>   TRUE 
@@ -1305,7 +1334,6 @@ loaded via a namespace (and not attached):
 [65] lubridate_1.7.9.2 knitr_1.30        rprojroot_2.0.2   stringi_1.5.3    
 [69] Rcpp_1.0.5        vctrs_0.3.5       dbplyr_2.0.0      tidyselect_1.1.0 
 [73] xfun_0.19        </code></pre>
-</div>
 </div>
 </div>
 
