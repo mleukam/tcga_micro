@@ -1,0 +1,284 @@
+---
+title: "batch_correction"
+author: "Michael Leukam"
+date: "2021-02-03"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Summary
+
+```
+Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction
+```
+
+## Setup
+
+Clear the workspace and set seed
+```{r}
+rm(list=ls())
+set.seed(818)
+```
+
+Load packages
+```{r message=FALSE}
+# data cleaning
+library(tidyverse)
+library(Biobase)
+library(Matrix.utils)
+library(limma)
+library(ggpubr)
+library(edgeR)
+```
+
+## Batch Correction
+
+From the manual for limma::removeBatchEffect
+
+```
+This function is useful for removing batch effects, associated with hybridization time or other technical variables, prior to clustering or unsupervised analysis such as PCA, MDS or heatmaps. It is not intended to use with linear modelling. For linear modelling, it is better to include the batch factors in the linear model.
+
+The design matrix is used to describe comparisons between the samples, for example treatment effects, which should not be removed.
+
+The function (in effect) fits a linear model to the data, including both batches and regular treatments, then removes the component due to the batch effects.
+
+The data object x can be of any class for which lmFit works. If x contains weights, then these will be used in estimating the batch effects.
+```
+
+```{r}
+# read in counts from tcga_data_prep
+tcga_counts <- readRDS("data/mode2_tcga_counts_list_clean.rds")
+str(tcga_counts, max.level = 2)
+str(tcga_counts$cpm_counts, max.level = 2)
+
+# pull out CPM counts
+cpm_list <- tcga_counts$cpm_counts
+str(cpm_list, max.level = 2)
+
+# get linked clinical data to set up limma model
+# convert to dataframe with subjects in rows
+cpm_clindat <- tcga_counts$cpm_counts$cpm_clindat %>%
+  # collapse list to single tbl
+  enframe() %>%
+  unnest(value) %>%
+  # remove duplicates (very few)
+  distinct(tcga_barcode, .keep_all = TRUE) %>%
+  # create variable for plate and center == batch
+  separate(tcga_full_barcode, 
+           into = c(NA, NA, NA, NA, NA, "plate", "center"), 
+           sep = "-", 
+           remove = FALSE) %>%
+  unite("batch", 
+        c("plate", "center"), 
+        sep = "", 
+        remove = FALSE) %>%
+  # convert to df with rownames
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode")
+
+# review
+dim(cpm_clindat)
+colnames(cpm_clindat)
+cpm_clindat[1:5, 1:5]
+```
+
+#### Genus Counts Corrected
+```{r}
+# start with genus as code test
+# get counts to set up limma model
+genus_cpm <- cpm_list$genus_cpm %>%
+  # collapse list to single tbl
+  bind_rows() %>%
+  # remove duplicates (very few, about 30)
+  distinct(tcga_barcode, .keep_all = TRUE) %>%
+  # convert to matrix and rotate
+  # cases are in columns and features are in rows
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode") %>%
+  as.matrix() %>%
+  t() 
+
+# check results
+dim(genus_cpm)
+genus_cpm[1:5, 1:5]
+
+# repair clinical data to match genus cpm
+clindat_genus_tbl <- cpm_clindat %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble()
+clindat_genus_cpm <- enframe(colnames(genus_cpm)) %>%
+  dplyr::select(tcga_barcode = value) %>%
+  left_join(clindat_genus_tbl) %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode")
+
+# check results
+dim(clindat_genus_cpm)
+clindat_genus_cpm[1:5, 1:5]
+
+# ensure that rows and columns are matched
+identical(colnames(genus_cpm), rownames(clindat_genus_cpm))
+length(rownames(clindat_genus_cpm))
+length(colnames(genus_cpm))
+```
+
+Plots
+```{r}
+# ensure that data approximates normal distribution for limma
+# make tidy dataframe for plotting
+tidy_generator <- function(listelement){
+  listelement %>% 
+    pivot_longer(-tcga_barcode, names_to = "genus", values_to = "counts") %>%
+    arrange(desc(counts))
+}
+# make tidy frames with cpm
+tidy_genera <- map(cpm_list$genus_cpm, tidy_generator)
+
+# counts distribution
+counts_dist_plotter <- function(df){
+  plot <- df %>%
+    ggplot(aes(x = counts, color = tcga_barcode)) +
+      geom_density() +
+      theme(legend.position = "none")
+  
+}
+# plot raw distributions of cpm for each tumor type
+dist_plot_list <- map(tidy_genera, counts_dist_plotter)
+do.call(ggarrange, dist_plot_list) %>%
+  annotate_figure(., top = text_grob("Counts Distribution by Genus", color = "black", face = "bold", size = 14))
+          
+# log cpm distribution
+log_dist_plotter <- function(df){
+  plot <- df %>%
+    mutate(lcounts = log2(counts)) %>%
+    dplyr::filter(lcounts > -100) %>%
+    ggplot(aes(x = lcounts), color = tcga_barcode) +
+      geom_density() +
+      theme(legend.position = "none") +
+      expand_limits(x = c(-20, 30))
+}
+# log cpm density plots
+log_plot_list <- map(tidy_genera, log_dist_plotter)
+names(log_plot_list) <- names(tidy_genera)
+do.call(ggarrange, log_plot_list) %>%
+  annotate_figure(., top = text_grob("log(Counts) Distribution by Genus", color = "black", face = "bold", size = 14))
+
+# log counts have a more normal distribution. unlogged counts have right skew
+```
+
+Limma batch correction
+```{r}
+#--------------------------------
+## VOOM NORMALIZATION AND BATCH CORRECTION WITH LIMMA ##
+
+# should pass non-log counts to voom
+# voom includes a log2 transformation
+# convert missing counts to 0
+dim(genus_cpm)
+summary(as.factor(is.na(genus_cpm)))
+summary(as.factor(is.nan(genus_cpm)))
+genus_cpm[is.na(genus_cpm)] <- 0
+summary(as.factor(is.na(genus_cpm)))
+
+# check other non-numeric values
+summary(as.factor(is.nan(genus_cpm)))
+summary(as.factor(is.finite(genus_cpm)))
+
+# remove cases with any infinites
+genus_cpm[!is.finite(genus_cpm)] <- NA
+genus_cpm <- genus_cpm[, colSums(is.na(genus_cpm)) == 0]
+
+# check again
+summary(as.factor(is.na(genus_cpm)))
+summary(as.factor(is.nan(genus_cpm)))
+summary(as.factor(is.finite(genus_cpm)))
+dim(genus_cpm)
+
+# remove cases with library size 0
+dim(genus_cpm)
+genus_cpm_filt <- genus_cpm[, colSums(genus_cpm != 0) > 0]
+dim(genus_cpm_filt)
+
+# repair clinical data to match genus cpm after cases were dropped
+clindat_genus_tbl <- cpm_clindat %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble()
+
+clindat_genus_cpm_filt <- enframe(colnames(genus_cpm_filt)) %>%
+  dplyr::select(tcga_barcode = value) %>%
+  left_join(clindat_genus_tbl) %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode")
+
+dim(clindat_genus_cpm_filt)
+clindat_genus_cpm_filt[1:5, 1:5]
+
+# ensure that rows and columns are matched
+identical(colnames(genus_cpm_filt), rownames(clindat_genus_cpm_filt))
+length(rownames(clindat_genus_cpm_filt))
+length(colnames(genus_cpm_filt))
+
+# create DGEList
+dge <- DGEList(counts = genus_cpm_filt)
+
+# apply TMM normalization to DGE
+dge <- calcNormFactors(dge)
+
+# set up design matrix
+# design matrix should include real differences to be preserved
+# Rob Knight paper used tumor type as real difference
+# I will do the same
+rnames <- rownames(clindat_genus_cpm_filt)
+TCGA_ <- clindat_genus_cpm_filt$tcga_proj %>% as.factor()
+summary(TCGA_)
+design <- model.matrix(~ 0 + TCGA_)
+rownames(design) <- rnames
+head(design)
+
+# Include sequencing center / plate as a batch variable to the model
+batch <- as.factor(clindat_genus_cpm_filt$batch)
+summary(batch)
+
+# Remove batch effects
+v <- voom(dge, design, plot = TRUE)
+genus_cpm_corrected <- removeBatchEffect(v, batch = batch, design = design)
+
+# check for negative results
+genus_cpm_corrected[genus_cpm_corrected < 0] %>% length()
+# what is lowest negative value?
+genus_cpm_corrected %>% min()
+# add correction factor to eliminate negative values
+genus_cpm_corrected_noneg <- as.matrix(genus_cpm_corrected) + 31
+genus_cpm_corrected_noneg %>% min()
+# check for missing results
+summary(as.factor(is.finite(genus_cpm_corrected_noneg)))
+
+# save results as ExpressionSet
+# first need variable annotation
+v_metadata <- data.frame(
+  labelDescription = colnames(clindat_genus_cpm_filt),
+  row.names = colnames(clindat_genus_cpm_filt))
+
+# make annotated phenoData
+phenoData <- new("AnnotatedDataFrame", 
+                 data = clindat_genus_cpm_filt, 
+                 varMetadata = v_metadata)
+phenoData
+
+# convert expression data to matrix format
+genus_cpm_mat <- genus_cpm_corrected_noneg %>% as.matrix()
+
+# create global annotation
+annotation <- as.character("Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Duplicate cases removed. Converted to counts per million total original (human and microbial) reads (extracted from Agamemnon logs) Missing counts converted to zeros. TMM normalization factors used for voom normalization with tumor type set as experimental design. Counts normalized by voom batch corrected using limma::removeBatchEffect using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Constant of 31 added to all counts to eliminate negative values after batch correction")
+
+# assemble expressionset
+genus_es <- ExpressionSet(
+  assayData = genus_cpm_mat,
+  phenoData = phenoData,
+  annotation = annotation)
+genus_es
+
+# save
+saveRDS(genus_es, "corrected_genus_cpm_expressionset.rds")
+```
