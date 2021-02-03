@@ -20,6 +20,63 @@ rm(list=ls())
 knitr::opts_chunk$set(eval = FALSE)
 ```
 
+Load packages
+```{r}
+library(tidyverse)
+```
+
+Make repaired taxonomy
+```{r}
+setwd("~/Projects/tcga_micro")
+# read in phylogenetic tree from agamemnon
+taxonomy <- read_csv("data/tcga_proj_taxonomy.csv")
+
+# make repars to missing data in taxonomy tree
+# if "---" is present, replace with reasonable substitute with flag
+# eg Anelloviridae_Family
+taxonomy_nomissing <- taxonomy %>%
+  # all missing superkingdom data are viruses (manual check)
+  # viruses are not classified in the same system as cellular life
+  # will use term 'virus' for all viruses at superkingdom level
+  mutate(Superkingdom = ifelse(Superkingdom == "---", "Virus", Superkingdom)) %>%
+  # if genus is missing, fill in with a higher level
+  mutate(Genus = 
+    ifelse((Genus == "---" & Family != "---"), paste0(Family, "_Family"),
+      ifelse((Genus == "---" & Order != "---"), paste0(Order, "_Order"),
+        ifelse((Genus == "---" & Class != "---"), paste0(Class, "_Class"),
+          ifelse((Genus == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
+            ifelse((Genus == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
+            Genus)))))) %>%
+  # if family is missing, fill in with a higher level
+  mutate(Family = 
+    ifelse((Family == "---" & Order != "---"), paste0(Order, "_Order"),
+      ifelse((Family == "---" & Class != "---"), paste0(Class, "_Class"),
+        ifelse((Family == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
+          ifelse((Family == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
+          Family))))) %>%
+  # if order is missing, fill in with a higher level
+  mutate(Order = 
+      ifelse((Order == "---" & Class != "---"), paste0(Class, "_Class"),
+        ifelse((Order == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
+          ifelse((Order == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
+          Order)))) %>%
+  # if class is missing, fill in with a higher level
+  mutate(Class = 
+      ifelse((Class == "---" & Phylum != "---"), paste0(Phylum, "_Phylum"),
+        ifelse((Class == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
+          Class))) %>%
+  # if phylum is missing, fill in with a higher level
+  mutate(Phylum = 
+      ifelse((Phylum == "---" & Superkingdom != "---"), paste0(Superkingdom, "_Superkingdom"),
+          Phylum)) 
+
+# save copy
+taxonomy_nomissing %>% saveRDS("data/tcga_proj_taxonomy_nomissing.rds")
+taxonomy_nomissing %>% write_csv("data/tcga_proj_taxonomy_nomissing.csv")
+# move taxonomy nomissing to HPC with filezilla
+# location: ~/tcga_micro in my personal storage
+```
+
 Setup on O2 cluster
 ```{bash, eval=FALSE, include=TRUE}
 srun --pty -p interactive --mem 64G -t 0-06:00 /bin/bash
@@ -29,14 +86,10 @@ cd /n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2
 R
 ```
 
-Load packages
-```{r}
-library(tidyverse)
-```
-
 ## Define function
 ```{r}
-input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/TCGA_HNSC"
+# test variables
+input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/TCGA_HNSC"
 output_dir <- "/n/scratch3/users/m/mjl62/agamemnon_counts/mode2"
 tcga_project <- "HNSC"
 ```
@@ -61,6 +114,8 @@ gather_counts <- function(input_dir, tcga_project){
   #
   # set constants: 
   output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts/mode2"
+  #
+  # read in repaired taxonomy with no missing data
   #
   # print starting message
   print(paste0("starting analysis of TCGA project ", tcga_project))
@@ -101,11 +156,25 @@ gather_counts <- function(input_dir, tcga_project){
     as_tibble() %>%
     unnest(cases) %>%
     unnest(samples)
+  # get aliquot ID out of GDC
+  aliquot_id <- files(legacy = FALSE) %>% 
+    GenomicDataCommons::filter( ~ file_id %in% file_uuids_vector) %>% 
+    GenomicDataCommons::select("cases.samples.portions.analytes.aliquots.submitter_id") %>%
+    results_all() %>%
+    as_tibble() %>%
+    unnest(cases) %>%
+    unnest(samples) %>%
+    unnest(portions) %>%
+    unnest(analytes) %>%
+    unnest(aliquots) %>%
+    dplyr::select(file_id, aliquot_submitter_id = submitter_id)
   clin_df <- list(conversion_table, clin_data) %>%
     reduce(left_join, by = "case_id") %>%
     left_join(sample_type, by = "file_id") %>%
+    left_join(aliquot_id, by = "file_id") %>%
     dplyr::select(file_id, 
-                  tcga_barcode, 
+                  tcga_barcode,
+                  tcga_full_barcode = aliquot_submitter_id,
                   case_id, 
                   sample_type, 
                   everything())
@@ -131,6 +200,10 @@ gather_counts <- function(input_dir, tcga_project){
                   Scientific_Name, 
                   TaxID) %>%
     mutate(TaxID = as.character(TaxID))
+  # read in taxonomy
+  taxonomy_nomissing <- read_csv("~/tcga_micro/tcga_proj_taxonomy_nomissing.csv") %>%
+    # expects all variables to be characters for downstream merging
+    mutate(TaxID = as.character(TaxID))
   # get matrix of counts with file_id as colnames
   tsv_mat <- tsv_list %>%
     map(function(df){df %>% pull(NumCounts)}) %>%
@@ -148,7 +221,7 @@ gather_counts <- function(input_dir, tcga_project){
     as_tibble()
   # counts by species
   species_counts_intermed <- taxid_counts_tbl %>%
-    left_join(taxonomy, by = "TaxID") %>%
+    left_join(taxonomy_nomissing, by = "TaxID") %>%
     dplyr::select(Species, everything()) %>%
     dplyr::select(-Superkingdom, 
                   -Phylum, 
@@ -168,10 +241,14 @@ gather_counts <- function(input_dir, tcga_project){
     as.data.frame() %>%
     rownames_to_column(var = "Species") %>%
     as_tibble()
+  # aggregate by rownames using Matrix.utils
+  # add column for TCGA barcodes
+  # add column for sample_type
   # counts by genus
   genus_counts_intermed <- taxid_counts_tbl %>%
-    left_join(taxonomy, by = "TaxID") %>%
-    dplyr::select(Species, everything()) %>%
+    # join taxonomy lookup table
+    left_join(taxonomy_nomissing, by = "TaxID") %>%
+    # remove undesired columns
     dplyr::select(-Superkingdom, 
                   -Phylum, 
                   -Class,
@@ -180,19 +257,22 @@ gather_counts <- function(input_dir, tcga_project){
                   -Species,
                   -Scientific_Name,
                   -TaxID)
+  # make a matrix with count labels as rownames
   genus_counts_mat <- genus_counts_intermed %>%
     dplyr::select(-Genus) %>%
     as.matrix()
   rownames(genus_counts_mat) <- genus_counts_intermed %>%
     pull(Genus)
+  # aggregate by summation for matching rownames
   genus_counts_tbl <- aggregate.Matrix(genus_counts_mat, row.names(genus_counts_mat)) %>%
     as.matrix() %>%
+    # convert back to dataframe
     as.data.frame() %>%
     rownames_to_column(var = "Genus") %>%
     as_tibble()
   # counts by kingdom
   king_counts_intermed <- taxid_counts_tbl %>%
-    left_join(taxonomy, by = "TaxID") %>%
+    left_join(taxonomy_nomissing, by = "TaxID") %>%
     dplyr::select(Species, everything()) %>%
     dplyr::select(-Phylum, 
                   -Class,
@@ -214,7 +294,7 @@ gather_counts <- function(input_dir, tcga_project){
     as_tibble()
    # counts by phylum
   phylum_counts_intermed <- taxid_counts_tbl %>%
-    left_join(taxonomy, by = "TaxID") %>%
+    left_join(taxonomy_nomissing, by = "TaxID") %>%
     dplyr::select(Species, everything()) %>%
     dplyr::select(-Superkingdom, 
                   -Class,
@@ -236,7 +316,7 @@ gather_counts <- function(input_dir, tcga_project){
     as_tibble()
   # counts by taxid/scientific_name
   taxid_counts_intermed <- taxid_counts_tbl %>%
-    left_join(taxonomy, by = "TaxID") %>%
+    left_join(taxonomy_nomissing, by = "TaxID") %>%
     dplyr::select(Scientific_Name, everything()) %>%
     dplyr::select(-Superkingdom, 
                   -Class,
@@ -313,6 +393,7 @@ ftab_nostad <- list.files() %>%
   dplyr::select(input_dir, tcga_project) %>%
   # remove projects with missing data
   dplyr::filter(tcga_project != "STAD") %>%
+  dplyr::filter(tcga_project != "PRAD") %>%
   print() 
 
 # add stad project labeled "mode2"
@@ -335,86 +416,4 @@ ftab <- ftab_nostad %>%
 
 # apply gather function to table
 map2(ftab$input_dir, ftab$tcga_project, gather_counts)
-```
-
-Get read counts
-```{r}
-input_dir <- "/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/TCGA_BRCA"
-tcga_project = "BRCA"
-
-gather_reads <- function(input_dir, tcga_project){
-  #
-  # function to gather all read count totals from get_reads.sh results
-  # path to directories as a quoted string as dir arguments
-  # ok if nested in subdirectories
-  # 4-letter TCGA project as project argument
-  # before starting, ensure no duplicate file_ids
-  #
-  # load required packages
-  library(tidyverse)
-  #
-  # set constants: 
-  output_dir = "/n/scratch3/users/m/mjl62/agamemnon_counts/mode2"
-  #
-  # print project for troubleshooting
-  print(paste0("starting analysis of ", tcga_project))
-  #
-  paths_df <- dir(path = input_dir, 
-      recursive = TRUE, 
-      include.dirs = FALSE, 
-      full.names = TRUE) %>%
-    enframe() %>%
-    dplyr::filter(grepl("hisat2_host.log", value)) %>%
-    separate(value, into = c(NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, "file_id"),
-             sep = "/", remove = FALSE) %>%
-    dplyr::select(pathto = value, file_id) %>%
-    mutate(reads = map(pathto, ~ read.table(file = .,header = F, nrows = 1))) %>%
-    unnest(cols = c("reads")) %>%
-    mutate(project = rep(tcga_project, times = nrow(.))) %>%
-    dplyr::select(project, file_id, reads = V1) 
-    #
-    # write out for later use
-    write_csv(paths_df,  
-            paste0(output_dir, 
-                   "/", 
-                   tcga_project, 
-                   "_totalreads.csv"))
-}
-
-# navigate to target directory
-setwd("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2")
-
-# make table of input variables
-ftab_nostad <- list.files() %>%
-  as_tibble() %>%
-  dplyr::rename(directory = value) %>%
-  dplyr::filter(grepl("TCGA_", directory)) %>%
-  separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
-  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/", 
-                            directory)) %>%
-  dplyr::select(input_dir, tcga_project) %>%
-  # remove projects with missing data
-  dplyr::filter(tcga_project != "STAD") %>%
-  print() 
-
-# add stad project labeled "mode2"
-ftab_stad <- list.files() %>%
-  as_tibble() %>%
-  dplyr::rename(directory = value) %>%
-  dplyr::filter(grepl("TCGA_", directory)) %>%
-  separate(directory, into = c(NA, "tcga_project", NA), remove = FALSE) %>%
-  mutate(input_dir = paste0("/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results2/", 
-                            directory)) %>%
-  dplyr::select(input_dir, tcga_project) %>%
-  # remove projects with missing data
-  dplyr::filter(grepl("_mode2", input_dir)) %>%
-  print() 
-
-# combine tables 
-ftab <- ftab_nostad %>%
-  bind_rows(ftab_stad) %>%
-  print()
-
-# apply gather function to table
-map2(ftab$input_dir, ftab$tcga_project, gather_reads)
 ```
