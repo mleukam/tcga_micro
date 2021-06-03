@@ -1,0 +1,326 @@
+---
+title: "africa_csf"
+author: "Michael Leukam"
+date: "2020-11-24"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Setup
+
+Load packages
+```{r}
+# data cleaning
+
+library(Matrix.utils)
+library(genefilter)
+library(ggplot2)
+library(ggfortify)
+library(edgeR)
+library(tidyverse)
+```
+
+Read in data
+```{r}
+microbe_counts_mode1 <- read_csv("data/africa_mode1.csv") %>%
+  select(-X1) %>%
+  as.data.frame() 
+
+meta_data <- read_csv("data/africa_metadata.csv") %>%
+  select(-X1) %>%
+  as.data.frame()
+```
+
+Normalize
+```{r}
+# ==== Top Microbes by Variance ====
+microbeDF = data.frame(
+  # this is to keep the original names
+  Microbe = microbe_counts_mode1$microbe_description.Scientific_Name,
+  # this will make names unique
+  Microbe.key = make.unique(microbe_counts_mode1$microbe_description.Scientific_Name)
+)
+
+# for convenience, we are going to create a new matrix with the log-transformed counts.
+# We are going to use the log2(CPM + 2) to take into account the differences in total number of counts
+# and another transformation called TMM.
+# We want to normalize the counts to make a fair comparison between all samples
+
+# first we get the counts
+tmpData = microbe_counts_mode1[,-1]
+# and use the "unique" microbe names 
+rownames(tmpData) = microbeDF$Microbe.key
+
+# we are going to remove  sample that has zero counts for all microbes
+tmpSum = colSums(tmpData)
+which(tmpSum == 0)
+# SRR11068958 
+
+tmpData = tmpData[rowSums(tmpData) > 0,]
+
+
+
+# we are going to create a DGE object to normalize the counts
+microbe_dge <- DGEList(counts=tmpData[,tmpSum > 0])
+
+# we can remove the copy of the counts, and the sums
+rm(tmpData,tmpSum)
+
+# normalize counts (TMM)
+microbe_dge <- calcNormFactors(object=microbe_dge,method="TMM")
+
+# get log CPM
+microbe_logCPM <- cpm(microbe_dge,log=TRUE)
+microbe_CPM <- cpm(microbe_dge, log = FALSE)
+
+Microbe.Var <- rowVars(microbe_logCPM)
+
+# now we can filter microbes by variance, let's try the top 500
+topMicrobes <- 100
+# since we sorted this data frame, we only need to pick
+# the first topMicrobes
+my_microbes =names(Microbe.Var)[1:topMicrobes]
+
+pcout_top_microbes <- prcomp(
+  x=t(microbe_logCPM[my_microbes,]),
+  center=TRUE,scale. = TRUE
+)
+
+varExp <- pcout_top_microbes$sdev**2
+varExp <- (varExp/sum(varExp))*100
+
+pcoutDF <- merge(
+  x = pcout_top_microbes$x %>%
+    as.data.frame() %>%
+    rownames_to_column(var="Run"),
+  y = meta_data,
+  by = "Run",all.x=TRUE
+)
+
+ggplot(
+  pcoutDF,
+  aes(x = PC1,
+      y = PC2,
+      color = disease)) + 
+  geom_point() +
+  xlab(paste0("PC1 (",round(varExp[1],2),"%)")) +
+  ylab(paste0("PC1 (",round(varExp[2],2),"%)")) +
+  facet_wrap(vars(sex))
+
+ggplot(pcoutDF,
+  aes(x = PC1,
+      y = PC2,
+      color = disease)) + 
+  geom_point() +
+  facet_wrap(vars(Region))
+```
+
+Heatmap
+```{r}
+library(ComplexHeatmap)
+
+# get list of groups in correct order
+disease_df <- 
+  colnames(microbe_CPM) %>% 
+  enframe() %>% 
+  select(Run = value) %>% 
+  left_join(meta_data)
+disease <- disease_df %>%
+  pull(disease) 
+names(disease) <- disease_df$Run
+disease
+
+Heatmap(microbe_CPM, 
+        show_row_names = FALSE, 
+        name = "normalized\ncounts", 
+        column_split = disease,
+        show_row_dend = FALSE,
+        )
+```
+
+Diversity metrics
+```{r}
+t_microbe_CPM <- microbe_CPM %>% as.matrix %>% t()
+
+# get measures of alpha-diversity
+alpha_getter <- function(df){
+  # get basic diversity indices
+  shannon <- df %>% 
+    diversity(., index = "shannon") %>%
+    enframe() %>%
+    rename(shannon = value)
+  simpson <- df %>%
+    diversity(., index = "simpson") %>%
+    enframe() %>%
+    rename(simpson = value)
+  invsimpson <- df %>%
+    diversity(., index = "invsimpson") %>%
+    enframe() %>%
+    rename(invsimpson = value)
+  # get pielou evenness measure
+  shanvect <- df %>%
+    diversity(., index = "shannon")
+  pielou <- tibble::enframe(shanvect/log(specnumber(df))) %>%
+    rename(pielou_evenness = value)
+  # get rarefied richness
+  df_round <- df %>%
+    as.matrix() %>%
+    round(., digits = 0)
+  rar <- rarefy(df_round, min(rowSums(df_round))) %>%
+    enframe() %>%
+    rename(rar_rich = value)
+  # join columns in single tbl
+  alpha_df <- shannon %>%
+    left_join(simpson, by = "name") %>%
+    left_join(invsimpson, by = "name") %>%
+    left_join(pielou, by = "name") %>%
+    left_join(rar, by = "name") %>%
+    dplyr::rename(sample_name = name)
+}
+
+microbe_list <- list(t_microbe_CPM)
+
+mode1_alpha <- map(microbe_list, alpha_getter)
+
+# ============================ BARPLOTS
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(shannon)) %>% 
+  ggplot(aes(
+      x = fct_reorder(sample_name, -shannon),
+      y = shannon,
+      fill = disease)) +
+    geom_bar(stat = "identity") +
+    theme_classic2() +
+    ylab("Shannon Diversity") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+#1300 wide
+  
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(simpson)) %>% 
+  ggplot(aes(
+      x = fct_reorder(sample_name, -simpson),
+      y = simpson,
+      fill = disease)) +
+    geom_bar(stat = "identity") +
+    theme_classic2() +
+    ylab("Simpson Diversity") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+#1300 wide
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(invsimpson)) %>% 
+  ggplot(aes(
+      x = fct_reorder(sample_name, -invsimpson),
+      y = invsimpson,
+      fill = disease)) +
+    geom_bar(stat = "identity") +
+    theme_classic2() +
+    ylab("Inverse Simpson Diversity") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+#1300 wide
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(pielou_evenness)) %>% 
+  ggplot(aes(
+      x = fct_reorder(sample_name, -pielou_evenness),
+      y = pielou_evenness,
+      fill = disease)) +
+    geom_bar(stat = "identity") +
+    theme_classic2() +
+    ylab("Pielou Evenness") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+#1300 wide
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(rar_rich)) %>% 
+  ggplot(aes(
+      x = fct_reorder(sample_name, -rar_rich),
+      y = rar_rich,
+      fill = disease)) +
+    geom_bar(stat = "identity") +
+    theme_classic2() +
+    ylab("Rarified Richness") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+#1300 wide
+
+# ============================ VIOLIN
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(shannon)) %>% 
+  ggplot(aes(
+      x = disease,
+      y = shannon,
+      fill = disease)) +
+    geom_violin() +
+    theme_classic2() +
+    ylab("Shannon Diversity") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+  
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(simpson)) %>% 
+  ggplot(aes(
+      x = disease,
+      y = simpson,
+      fill = disease)) +
+    geom_violin() +
+    theme_classic2() +
+    ylab("Simpson Diversity") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(invsimpson)) %>% 
+  ggplot(aes(
+      x = disease,
+      y = invsimpson,
+      fill = disease)) +
+    geom_violin() +
+    theme_classic2() +
+    ylab("Inverse Simpson Diversity") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(pielou_evenness)) %>% 
+  ggplot(aes(
+      x = disease,
+      y = pielou_evenness,
+      fill = disease)) +
+    geom_violin() +
+    theme_classic2() +
+    ylab("Pielou Evenness") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+
+mode1_alpha[[1]] %>% 
+  left_join(disease_df, by = c("sample_name" = "Run")) %>%
+  arrange(desc(rar_rich)) %>% 
+  ggplot(aes(
+      x = disease,
+      y = rar_rich,
+      fill = disease)) +
+    geom_violin() +
+    theme_classic2() +
+    ylab("Rarified Richness") + 
+    xlab("") +
+    theme(axis.text.x = element_text(angle = 90))
+
+
+```

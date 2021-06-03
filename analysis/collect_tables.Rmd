@@ -30,6 +30,7 @@ Make repaired taxonomy
 setwd("~/Projects/tcga_micro")
 # read in phylogenetic tree from agamemnon
 taxonomy <- read_csv("data/tcga_proj_taxonomy.csv")
+taxonomy
 
 # make repars to missing data in taxonomy tree
 # if "---" is present, replace with reasonable substitute with flag

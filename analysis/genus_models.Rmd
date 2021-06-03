@@ -42,7 +42,81 @@ Read in data
 Results of derive_vars.Rmd
 ```{r}
 genus_analysis_list <- readRDS("data/genus_analysis_list.rds")
+genus_counts_alldata <- readRDS("output/genus_counts_alldata.rds")
 ```
+
+## Iterations
+
+Example tumors: HNSC, STAD, SKCM
+
+Model 1:
+- Normalization: CPM (total counts), TMM
+- Transformation: log2 via voom
+- Batch correction:
+    * Batch: center + plate
+    * Model: tumor type
+    * Method: limma removeBatchEffect
+- Model:
+    * Outcomes: 
+        - Lymphocyte Infiltration Signature Score
+        - BCR Shannon
+        - TCR Shannon
+        - Macrophage Regulation
+    * Method:
+        - Spearman correlation
+    
+```{r}
+# select data type
+cpm_total <- genus_counts_alldata[["genus_cpm"]]
+cpm_clindat <- genus_counts_alldata[["clindat_cpm"]]
+
+# select tumors, get TCGA barcodes
+cpm_selected_barcodes <- cpm_clindat %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble() %>%
+  dplyr::filter(name %in% c("HNSC", "STAD", "SKCM")) %>%
+  pull("tcga_barcode")
+
+# filter expression for selected tumors
+cpm_filtered <- cpm_total %>%
+  t() %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble() %>%
+  dplyr::filter(tcga_barcode %in% cpm_selected_barcodes) %>%
+  print()
+
+# select immune correlates
+imm_cor <- genus_analysis_list$imm_cor %>%
+  enframe() %>%
+  dplyr::filter(name %in% c("HNSC", "STAD", "SKCM")) %>%
+  unnest(value) %>%
+  dplyr::select(tcga_barcode, 
+    tcga_proj = `TCGA Study`, 
+    lymphocyte_score = `Lymphocyte Infiltration Signature Score`, 
+    bcr_shannon = `BCR Shannon`, 
+    tcr_shannon = `TCR Shannon`, 
+    macrophage_regulation = `Macrophage Regulation`) %>%
+  print()
+```
+
+Model 2:
+- Normalization: CPM (microbial counts only), TMM
+- Transformation: log2 via voom
+- Batch correction:
+    * Batch: center + plate
+    * Model: tumor type
+    * Method: limma removeBatchEffect
+- Model:
+    * Outcomes: 
+        - Lymphocyte Infiltration Signature Score
+        - BCR Shannon
+        - TCR Shannon
+        - Macrophage Regulation
+    * Method:
+        - Spearman correlation
+
 
 ## Diversity correlations
 
@@ -175,8 +249,7 @@ imm_cor_dfs <- map(imm_cor_list, ~ .[["imm_cor"]])
 map(imm_cor_dfs, function(imm_col){
   map(as.data.frame(imm_col), ~ summary(as.factor(is.na(.))))
 }) %>%
-  as_tibble() %>%
-  View()
+  as_tibble()
 ```
 
 ```{r}
@@ -287,20 +360,20 @@ inputvars
 
 # function for plot
 ### NOT WORKING YET
-map(inputvars, function(inputvar){
-  dervars_unified_tbl %>% 
-    ggplot(aes(x = reorder(tcga_proj, inputvar, mean), 
-             y = inputvar, 
-             fill = tcga_proj, 
-             color = tcga_proj)) +
-    geom_violin(scale = "width")
+# map(inputvars, function(inputvar){
+#  dervars_unified_tbl %>% 
+#    ggplot(aes(x = reorder(tcga_proj, inputvar, mean), 
+#             y = inputvar, 
+#             fill = tcga_proj, 
+#             color = tcga_proj)) +
+#    geom_violin(scale = "width")
     # geom_boxplot(width = 0.15, fill = "white") +
     # theme_classic2() +
     # theme(legend.position = "none") +
     # theme(axis.text.x = element_text(angle = 60, hjust=1)) +
     # xlab("") +
     # ggtitle(paste0("Genus ", inputvar, " by tumor type"))
-})
+# })
   
 dervars_unified_tbl %>% 
   ggplot(aes(x = reorder(tcga_proj, simpson, mean), y = simpson, fill = tcga_proj, color = tcga_proj)) +
@@ -310,7 +383,8 @@ dervars_unified_tbl %>%
   theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 60, hjust=1)) +
   xlab("") +
-  ggtitle("Genus Simpson diversity by tumor type")
+  ggtitle("Genus Simpson diversity by tumor type") + 
+  expand_limits(x = 0, y = 0)
 
 dervars_unified_tbl %>% 
   ggplot(aes(x = reorder(tcga_proj, invsimpson, mean), 
@@ -323,7 +397,8 @@ dervars_unified_tbl %>%
   theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 60, hjust=1)) +
   xlab("") +
-  ggtitle("Genus inverse Simpson diversity by tumor type")
+  ggtitle("Genus inverse Simpson diversity by tumor type") +
+  expand_limits(x = 0, y = 0)
 
 dervars_unified_tbl %>% 
   ggplot(aes(x = reorder(tcga_proj, pielou_evenness, mean), 
@@ -336,7 +411,8 @@ dervars_unified_tbl %>%
   theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 60, hjust=1)) +
   xlab("") +
-  ggtitle("Genus Pielou evenness by tumor type")
+  ggtitle("Genus Pielou evenness by tumor type") +
+  expand_limits(x = 0, y = 0)
 
 dervars_unified_tbl %>% 
   ggplot(aes(x = reorder(tcga_proj, rar_rich, mean), 
@@ -520,14 +596,6 @@ combined_tbl %>%
     geom_point() +
     geom_smooth() +
     ggtitle("Melanoma plasma cells vs bacterial fraction")
-
-combined_tbl %>% 
-  .[["SKCM"]] %>%
-  dplyr::select(pielou_evenness, til_regional_frac = `TIL Regional Fraction`) %>%
-  ggplot(aes(x = pielou_evenness, y = til_regional_frac)) +
-    geom_point() +
-    geom_smooth() +
-    ggtitle("Melanoma TIL regional fraction vs Pielou evenness")
 ```
 
 
@@ -541,6 +609,9 @@ genera_names <- genus_analysis_list$genus_cpm_list %>%
   map(~ .[(-which(colnames(.) == "tcga_barcode"))]) %>%
   .[[1]] %>%
   colnames(.)
+
+# read in corrected genus level data
+corrected_es <- readRDS("output/corrected_genus_cpm_expressionset.rds")
 
 # immune correlates for correlation
 imm_cor_names <- combined_tbl %>%
@@ -1196,111 +1267,6 @@ fviz_pca_var(genus_pca_filt, col.var = "cos2",
              gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), 
              label = FALSE
              )
-```
-
-
-```    
-    
-  left_join(genus_tbl) %>%
-  dplyr::select(-c(os_status, os_days)) %>%
-  # convert to data.frame
-  as.data.frame() %>%
-  column_to_rownames(var = "tcga_barcode") %>%
-  print()
-
-surv_genus[1:5, 1:5]
-
-# partition the data
-set.seed(818)
-genus_train_samples <- twoyr_os_surv_genus$twoyr_os_status %>%
-  createDataPartition(p = 0.8, list = FALSE) 
-genus_train <- surv_genus[genus_train_samples, ]
-genus_test <- surv_genus[-genus_train_samples, ]
-
-# define predictor variables
-x <- model.matrix(twoyr_os_status~., genus_train)[,-1]
-# Outcome variable
-y <- genus_train$twoyr_os_status
-
-# are the data unbalanced? How well will guessing "alive" for everyone work
-# create baseline model - how well will a model that always guesses "normal" do?
-table(genus_train$twoyr_os_status)
-204/(204 + 96)
-# with no additional information, guessing "alive" will be right 68% of the time
-
-# find the best AUC using cross-validation
-# alpha = 1 for lasso 
-cv_lasso <- cv.glmnet(x, y, 
-                      alpha = 1, 
-                      family = "binomial", 
-                      type.measure = "auc")
-plot(cv_lasso)
-
-# lowest lambda minimizes prediction error
-cv_lasso$lambda.min
-# the purpose of regularization is to balance accuracy and simplicity or a model with the smallest number of predictors that also gives a good accuracy. cv.glmnet() finds the value of lambda that gives the simplest model that lies within one standard error of the optimal value of lambda: lambda.1se
-cv_lasso$lambda.1se
-
-# coefficients for lambda min
-coef(cv_lasso, cv_lasso$lambda.min)
-# coefficients for lambda 1se
-coef(cv_lasso, cv_lasso$lambda.1se)
-
-# final model with lambda.min
-cv_final_model <- glmnet(x, y, alpha = 1, family = "binomial",
-                      lambda = cv_lasso$lambda.min)
-
-# make predictions on the test data
-x_test <- model.matrix(twoyr_os_status~., genus_test)[,-1]
-predictions <- cv_final_model %>% 
-  predict(x_test) %>% 
-  as.vector()
-
-# make predictions on test data
-x_test <- model.matrix(twoyr_os_status~., genus_test)[,-1]
-probabilities <- cv_final_model %>% predict(newx = x_test)
-predicted_classes <- ifelse(probabilities > 0.5, 1, 0)
-# model accuracy
-observed_classes <- genus_test$twoyr_os_status
-mean(predicted_classes == observed_classes)
-# model performance metrics
-predictions <- cv_final_model %>% 
-  predict(x_test) %>% 
-  as.vector()
-data.frame(
-  RMSE = RMSE(predictions, genus_test$twoyr_os_status),
-  Rsquare = R2(predictions, genus_test$twoyr_os_status)
-)
-# get AUC
-max(cv_lasso$cvm)
-
-# get most influential variables (top 10)
-twoyr_varimp <- varImp(cv_final_model, 
-                     lambda = cv_lasso$lambda.min, 
-                     scale = FALSE) %>%
-  rownames_to_column(var = "rowname") %>%
-  arrange(desc(Overall)) %>%
-  mutate(rowname = fct_reorder(rowname, Overall)) %>%
-  slice(1:10)
-
-twoyr_varimp
-
-twoyr_varimp_plot <- ggplot(data = twoyr_varimp, aes(x = rowname, y = Overall)) +
-  geom_segment(aes(x = rowname, 
-                   xend = rowname, y = 0, 
-                   yend = Overall), color="gray") +
-  geom_point(color="dark red", size=4) +
-  labs(title = "Genus predictors of two-year survival") +
-  xlab("") +
-  ylab("Importance") +
-  theme_classic() +
-  coord_flip() +
-  theme(
-    panel.grid.major.y = element_blank(),
-    panel.border = element_blank(),
-    axis.ticks.y = element_blank()
-  ) 
-twoyr_varimp_plot
 ```
 
 

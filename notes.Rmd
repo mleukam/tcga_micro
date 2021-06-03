@@ -1,0 +1,20 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+2/3/2020 Lab Meeting Notes:
+
+- Create boxes for separate models, pass list structure in, and eventually collapse all the results from all the models with tweaked settings to be displayed in a single diagram
+- Use multiple batch correction models and compare (HM? DeSEQ2?)
+- Pick 2-3 cancers:
+    = How do I normalize?
+    = How do I batch correct?
+    = Which features am I using?
+    = Which modeling system am I using?
+    
+Look at outputs for expected or easily interpretable results to assess performance of the model.
+
+Summary variables split by superkingdom
+
+External test set?

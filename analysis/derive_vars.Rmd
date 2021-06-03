@@ -35,16 +35,46 @@ From tcga_data_prep
 # tcga_counts <- readRDS("data/comb_tcga_counts_list.rds")
 
 # mode 2 data
-tcga_counts <- readRDS("data/mode2_tcga_counts_list.rds")
+# tcga_counts <- readRDS("data/mode2_tcga_counts_list.rds")
 
-str(tcga_counts, max.level = 2)
-genus_tbl <- tcga_counts$counts$genus$STAD %>%
-  print()
-imm_cor_tbl <- tcga_counts$imm_cor$STAD %>%
-  print()
+# str(tcga_counts, max.level = 2)
+# genus_tbl <- tcga_counts$counts$genus$STAD %>%
+#  print()
+# imm_cor_tbl <- tcga_counts$imm_cor$STAD %>%
+#   print()
 
-# cleaned and batch corrected data
-genus_es <- readRDS("corrected_genus_cpm_expressionset.rds")
+# batch corrected and uncorrected data
+genus_counts_es_list <- readRDS("output/genus_combined_expressionsets.rds")
+str(genus_counts_es_list, max.level = 1)
+
+# function for converting expression set into list of tumors
+bytumortyper <- function(es){
+  clindat <- pData(es) %>% 
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble()
+  proj_lookup <- clindat %>%
+    select(tcga_barcode, tcga_proj)
+  counts <- exprs(es) %>%
+    t() %>%
+    print() %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "tcga_barcode") %>%
+    as_tibble() %>%
+    left_join(proj_lookup) %>%
+    select(tcga_proj, tcga_barcode, everything()) %>%
+    group_by(tcga_proj) %>%
+    nest() %>%
+    deframe()
+  list("counts" = counts, "clindat" = clindat)
+}
+
+# test
+corrected_cpm <- bytumortyper(genus_counts_es_list[[1]])
+
+# apply to list of ES
+counts_data <- map(genus_counts_es_list, bytumortyper)
+str(counts_data, max.level = 2)
+
 ```
 
 ```{bash}
@@ -53,8 +83,10 @@ sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/
 cd ~/sshfs_mount/TCGA/TCGA_STAD/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/Analysis/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/taxonomic_ranks
 ```
 
+Read in taxonomy data
 ```{r}
 taxonomy <- read_csv("data/tcga_proj_taxonomy.csv")
+taxonomy_nomissing <- readRDS("data/tcga_proj_taxonomy_nomissing.rds")
 ```
 
 Goal:
@@ -70,66 +102,56 @@ Genera abundance, species abundance, and strain abundance as correlates
 ## Descriptive Statistics
 
 #### Distribution
-```{r}
-# get sublists of counts for downstream application
-genus_list <- tcga_counts$counts$genus
-species_list <- tcga_counts$counts$species
-taxid_list <- tcga_counts$counts$taxid
-kingdom_list <- tcga_counts$counts$kingdom
-phylum_list <- tcga_counts$counts$phylum
-
-genus_cpm_list <- tcga_counts$cpm_counts$genus_cpm
-species_cpm_list <- tcga_counts$cpm_counts$species_cpm
-taxid_cpm_list <- tcga_counts$cpm_counts$taxid_cpm
-kingdom_cpm_list <- tcga_counts$cpm_counts$kingdom_cpm
-phylum_cpm_list <- tcga_counts$cpm_counts$phylum_cpm
-
-# batch corrected dataset
-genus_cpm_clindat <- pData(genus_es) %>% 
-  rownames_to_column(var = "tcga_barcode") %>%
-  as_tibble() %>%
-  print()
-proj_lookup <- genus_cpm_clindat %>%
-  select(tcga_barcode, tcga_proj) %>%
-  print()
-genus_cpm_corrected <- exprs(genus_es) %>%
-  t() %>%
-  print() %>%
-  as.data.frame() %>%
-  rownames_to_column(var = "tcga_barcode") %>%
-  as_tibble() %>%
-  left_join(proj_lookup) %>%
-  select(tcga_proj, tcga_barcode, everything()) %>%
-  group_by(tcga_proj) %>%
-  nest() %>%
-  deframe() %>%
-  print()
-```
 
 Visualize distributions
 ```{r}
-# make tidy dataframe for plotting
-# run this on the genus corrected sublist
+# make tidy dataframes for plotting
+# run this over the entire counts data object
 tidy_generator <- function(listelement){
-  listelement %>% 
-    pivot_longer(-tcga_barcode, names_to = "genus", values_to = "counts") %>%
-    arrange(desc(counts))
+  listelement$counts %>%
+    map(., function(df){
+      df %>% 
+        pivot_longer(-tcga_barcode, 
+          names_to = "genus", 
+          values_to = "counts") %>%
+        arrange(desc(counts))})
 }
+
 # make tidy frames with cpm
-tidy_genera <- map(genus_cpm_corrected, tidy_generator)
+tidy_counts <- map(counts_data, tidy_generator)
+
+str(tidy_counts, max.level = 1)
+str(tidy_counts, max.level = 2)
 
 # counts distribution
-counts_dist_plotter <- function(df){
-  plot <- df %>%
-    ggplot(aes(x = counts, color = tcga_barcode)) +
+counts_dist_plotter <- function(listelement){
+  map(listelement, function(df){
+    df %>%
+      ggplot(aes(x = counts, color = tcga_barcode)) +
       geom_density() +
-      theme(legend.position = "none")
-  
+      theme(legend.position = "none")}) %>%
+  ggarrange(plotlist = .) %>%
+  annotate_figure(., 
+    top = text_grob(name(listelement), 
+    color = "black", 
+    face = "bold", 
+    size = 14))
 }
-# plot raw distributions of cpm for each tumor type
-dist_plot_list <- map(tidy_genera, counts_dist_plotter)
-do.call(ggarrange, dist_plot_list) %>%
-  annotate_figure(., top = text_grob("Counts Distribution by Genus", color = "black", face = "bold", size = 14))
+
+dist_plot_list <- map(tidy_counts, counts_dist_plotter)
+
+str(dist_plot_list, max.level = 1)
+# plot raw distributions for each tumor type
+
+dist_plot_list[["corrected_cpm"]]
+dist_plot_list[["uncorrected_cpm"]]
+dist_plot_list[["corrected_counts"]]
+dist_plot_list[["uncorrected_counts"]]
+dist_plot_list[["corrected_microcpm"]]
+dist_plot_list[["uncorrected_microcpm"]]
+
+# do.call(ggarrange, dist_plot_list_genus_cpm_corrected[["corrected_cpm"]]) %>%
+#  annotate_figure(., top = text_grob("Corrected Genus CPM by Tumor Type", color = "black", face = "bold", size = 14))
           
 # log cpm distribution
 log_dist_plotter <- function(df){
@@ -139,39 +161,24 @@ log_dist_plotter <- function(df){
     ggplot(aes(x = lcounts), color = tcga_barcode) +
       geom_density() +
       theme(legend.position = "none") +
-      expand_limits(x = c(-20, 30))
+      expand_limits(x = c(4, 5))
 }
 # log cpm density plots
-log_plot_list <- map(tidy_genera, log_dist_plotter)
-names(log_plot_list) <- names(tidy_genera)
-do.call(ggarrange, log_plot_list) %>%
-  annotate_figure(., top = text_grob("log(Counts) Distribution by Genus", color = "black", face = "bold", size = 14))
+log_plot_list_genus_cpm_corrected <- map(tidy_genus_cpm_corrected, log_dist_plotter)
+names(log_plot_list_genus_cpm_corrected) <- names(tidy_genus_cpm_corrected)
+do.call(ggarrange, log_plot_list_genus_cpm_corrected) %>%
+  annotate_figure(., top = text_grob("Corrected log(CPM) by Tumor Type", color = "black", face = "bold", size = 14))
 ```
 
 ## Derive new variables
 
-#### Alpha diversity
+#### CPM alpha diversity
 
 ```{r}
-# get cpm in matrix form 
-make_counts_df <- function(df){
-  df %>%
-    dplyr::group_by(tcga_barcode) %>%
-    summarise_all(sum) %>%
-    filter(across(everything(), ~ !is.nan(.x))) %>%
-    as.data.frame() %>%
-    column_to_rownames(var = "tcga_barcode")
-}
-genus_df_list <- map(genus_cpm_list, make_counts_df)
-# species_df_list <- map(species_cpm_list, make_counts_df)
-# taxid_df_list <- map(taxid_cpm_list, make_counts_df)
 
-genus_corrected_df_list <- map(genus_cpm_corrected, make_counts_df)
-
-df <- genus_df_list$BRCA 
 # get measures of alpha-diversity
 alpha_getter <- function(df){
-  # get basic diversity indices
+# get global basic diversity indices
   shannon <- df %>% 
     diversity(., index = "shannon") %>%
     enframe() %>%
@@ -184,35 +191,314 @@ alpha_getter <- function(df){
     diversity(., index = "invsimpson") %>%
     enframe() %>%
     rename(invsimpson = value)
-  # get pielou evenness measure
+  # get global pielou evenness measure
   shanvect <- df %>%
     diversity(., index = "shannon")
   pielou <- tibble::enframe(shanvect/log(specnumber(df))) %>%
     rename(pielou_evenness = value)
-  # get rarefied richness
+  # get global rarefied richness
   df_round <- df %>%
     as.matrix() %>%
     round(., digits = 0)
   rar <- rarefy(df_round, min(rowSums(df_round), na.rm = T)) %>%
     enframe() %>%
     rename(rar_rich = value)
-  # join columns in single tbl
+# get separate diversity indices for each superkingdom
+  # get vectors of genera belonging to each superkingdom
+  viral_genera <- taxonomy_nomissing %>%
+    dplyr::filter(Superkingdom == "Virus") %>%
+    pull(Genus)
+  bacterial_genera <- taxonomy_nomissing %>%
+    dplyr::filter(Superkingdom == "Bacteria") %>%
+    pull(Genus)
+  archaea_genera <- taxonomy_nomissing %>%
+    dplyr::filter(Superkingdom == "Archaea") %>%
+    pull(Genus)
+  eukaryota_genera <- taxonomy_nomissing %>%
+    dplyr::filter(Superkingdom == "Eukaryota") %>%
+    pull(Genus)
+  # compute separate diversity metrics
+  # virus
+  viral_df <- df %>% 
+    dplyr::select(any_of(viral_genera))
+  viral_shannon <- viral_df %>% 
+    diversity(., index = "shannon") %>%
+    enframe() %>%
+    rename(viral_shannon = value)
+  viral_simpson <- viral_df %>% 
+    diversity(., index = "simpson") %>%
+    enframe() %>%
+    rename(viral_shannon = value)
+  viral_invsimpson <- viral_df %>% 
+    dplyr::select(any_of(viral_genera)) %>%
+    diversity(., index = "invsimpson") %>%
+    enframe() %>%
+    rename(viral_shannon = value)
+  viral_shanvect <- viral_df %>%
+    diversity(., index = "shannon")
+  viral_pielou <- enframe(viral_shanvect/log(specnumber(viral_df))) %>%
+    rename(viral_pielou_evenness = value)
+  viral_df_round <- viral_df %>%
+    as.matrix() %>%
+    round(., digits = 0)
+  viral_rar <- rarefy(viral_df_round, min(rowSums(viral_df_round), na.rm = T)) %>%
+    enframe() %>%
+    rename(viral_rar_rich = value)
+  # bacterial
+  bacterial_df <- df %>% 
+    dplyr::select(any_of(bacterial_genera))
+  bacterial_shannon <- bacterial_df %>% 
+    diversity(., index = "shannon") %>%
+    enframe() %>%
+    rename(bacterial_shannon = value)
+  bacterial_simpson <- bacterial_df %>% 
+    diversity(., index = "simpson") %>%
+    enframe() %>%
+    rename(bacterial_shannon = value)
+  bacterial_invsimpson <- bacterial_df %>% 
+    dplyr::select(any_of(bacterial_genera)) %>%
+    diversity(., index = "invsimpson") %>%
+    enframe() %>%
+    rename(bacterial_shannon = value)
+  bacterial_shanvect <- bacterial_df %>%
+    diversity(., index = "shannon")
+  bacterial_pielou <- enframe(bacterial_shanvect/log(specnumber(bacterial_df))) %>%
+    rename(bacterial_pielou_evenness = value)
+  bacterial_df_round <- bacterial_df %>%
+    as.matrix() %>%
+    round(., digits = 0)
+  bacterial_rar <- rarefy(bacterial_df_round, min(rowSums(bacterial_df_round), na.rm = T)) %>%
+    enframe() %>%
+    rename(bacterial_rar_rich = value)
+  # archaea
+  archaea_df <- df %>% 
+    dplyr::select(any_of(archaea_genera))
+  archaea_shannon <- archaea_df %>% 
+    diversity(., index = "shannon") %>%
+    enframe() %>%
+    rename(archaea_shannon = value)
+  archaea_simpson <- archaea_df %>% 
+    diversity(., index = "simpson") %>%
+    enframe() %>%
+    rename(archaea_shannon = value)
+  archaea_invsimpson <- archaea_df %>% 
+    dplyr::select(any_of(archaea_genera)) %>%
+    diversity(., index = "invsimpson") %>%
+    enframe() %>%
+    rename(archaea_shannon = value)
+  archaea_shanvect <- archaea_df %>%
+    diversity(., index = "shannon")
+  archaea_pielou <- enframe(archaea_shanvect/log(specnumber(archaea_df))) %>%
+    rename(archaea_pielou_evenness = value)
+  archaea_df_round <- archaea_df %>%
+    as.matrix() %>%
+    round(., digits = 0)
+  archaea_rar <- rarefy(archaea_df_round, min(rowSums(archaea_df_round), na.rm = T)) %>%
+    enframe() %>%
+    rename(archaea_rar_rich = value)
+  # eukaryota
+  eukaryota_df <- df %>% 
+    dplyr::select(any_of(eukaryota_genera))
+  eukaryota_shannon <- eukaryota_df %>% 
+    diversity(., index = "shannon") %>%
+    enframe() %>%
+    rename(eukaryota_shannon = value)
+  eukaryota_simpson <- eukaryota_df %>% 
+    diversity(., index = "simpson") %>%
+    enframe() %>%
+    rename(eukaryota_shannon = value)
+  eukaryota_invsimpson <- eukaryota_df %>% 
+    dplyr::select(any_of(eukaryota_genera)) %>%
+    diversity(., index = "invsimpson") %>%
+    enframe() %>%
+    rename(eukaryota_shannon = value)
+  eukaryota_shanvect <- eukaryota_df %>%
+    diversity(., index = "shannon")
+  eukaryota_pielou <- tibble::enframe(eukaryota_shanvect/log(specnumber(eukaryota_df))) %>%
+    rename(eukaryota_pielou_evenness = value)
+  eukaryota_df_round <- eukaryota_df %>%
+    as.matrix() %>%
+    round(., digits = 0)
+  eukaryota_rar <- rarefy(eukaryota_df_round, min(rowSums(eukaryota_df_round), na.rm = T)) %>%
+    enframe() %>%
+    rename(eukaryota_rar_rich = value)
+# join columns in single tbl
   alpha_df <- shannon %>%
     left_join(simpson, by = "name") %>%
     left_join(invsimpson, by = "name") %>%
     left_join(pielou, by = "name") %>%
     left_join(rar, by = "name") %>%
+    left_join(viral_shannon, by = "name") %>%
+    left_join(viral_simpson, by = "name") %>%
+    left_join(viral_invsimpson, by = "name") %>%
+    left_join(viral_pielou, by = "name") %>%
+    left_join(viral_rar, by = "name") %>%
+    left_join(bacterial_shannon, by = "name") %>%
+    left_join(bacterial_simpson, by = "name") %>%
+    left_join(bacterial_invsimpson, by = "name") %>%
+    left_join(bacterial_pielou, by = "name") %>%
+    left_join(bacterial_rar, by = "name") %>%
+    left_join(archaea_shannon, by = "name") %>%
+    left_join(archaea_simpson, by = "name") %>%
+    left_join(archaea_invsimpson, by = "name") %>%
+    left_join(archaea_pielou, by = "name") %>%
+    left_join(archaea_rar, by = "name") %>%
+    left_join(eukaryota_shannon, by = "name") %>%
+    left_join(eukaryota_simpson, by = "name") %>%
+    left_join(eukaryota_invsimpson, by = "name") %>%
+    left_join(eukaryota_pielou, by = "name") %>%
+    left_join(eukaryota_rar, by = "name") %>%
     dplyr::rename(tcga_barcode = name)
+  alpha_df
 }
 
-genus_alpha <- map(genus_df_list, alpha_getter)
-# species_alpha <- map(species_df_list, alpha_getter)
-# taxid_alpha <- map(taxid_df_list, alpha_getter)
+# prepare data------------------------------------------
+# get counts in dataframe
 
-genus_corrected_alpha <- map(genus_corrected_df_list, alpha_getter)
+str(counts_data, max.level = 2)
+str(counts_data$corrected_counts, max.level = 2)
+counts_data$corrected_cpm$counts$BRCA
+
+make_counts_df <- function(df){
+  df %>%
+    # add up any duplicate rows to summarize at genus/sample level
+    dplyr::group_by(tcga_barcode) %>%
+    summarise_all(sum) %>%
+    # remove non-numeric values
+    filter(across(everything(), ~ !is.nan(.x))) %>%
+    # eliminate negative values
+    mutate(across(everything(), ~ ifelse(.x < 0, 0, .x))) %>%
+    # convert to dataframe with rownames
+    as.data.frame() %>%
+    column_to_rownames(var = "tcga_barcode")
+}
+
+# apply df maker function to each of the data types
+corrected_cpm_df_list <- map(counts_data$corrected_cpm$counts, make_counts_df)
+
+uncorrected_cpm_df_list <- map(counts_data$uncorrected_cpm$counts, make_counts_df)
+
+corrected_counts_df_list <- map(counts_data$corrected_counts$counts, make_counts_df)
+
+uncorrected_counts_df_list <- map(counts_data$uncorrected_counts$counts, make_counts_df)
+
+corrected_microcpm_df_list <- map(counts_data$corrected_microcpm$counts, make_counts_df)
+
+uncorrected_microcpm_df_list <- map(counts_data$uncorrected_microcpm$counts, make_counts_df)
+
+# apply function to get alpha diversity
+corrected_cpm_alpha <- map(corrected_cpm_df_list, alpha_getter)
+uncorrected_cpm_alpha <- map(uncorrected_cpm_df_list, alpha_getter)
+corrected_counts_alpha <- map(corrected_counts_df_list, alpha_getter)
+uncorrected_counts_alpha <- map(uncorrected_counts_df_list, alpha_getter)
+corrected_microcpm_alpha <- map(corrected_microcpm_df_list, alpha_getter)
+uncorrected_microcpm_alpha <- map(uncorrected_microcpm_df_list, alpha_getter)
+```
+
+
+```{r}
+# plots
+corrected_cpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+corrected_cpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+uncorrected_cpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+uncorrected_cpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+corrected_counts_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+corrected_counts_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+uncorrected_counts_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+uncorrected_counts_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+corrected_microcpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+corrected_microcpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+uncorrected_microcpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+uncorrected_microcpm_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
 ```
 
 #### High-level taxonomy
+
+This block is now defunct
 ```{r}
 # read in repaired toxonomy
 taxonomy_nomissing <- readRDS("data/tcga_proj_taxonomy_nomissing.rds")
@@ -222,7 +508,7 @@ taxonomy_nomissing <- taxonomy_nomissing %>%
   arrange(Genus) %>%
   print()
 
-# repair counts not generated with repaired toxonomy
+# repair counts not generated with repaired taxonomy
 kingdom_list_element <- tcga_counts$cpm_counts$kingdom_cpm$ACC
 
 high_leveler <- function(kingdom_list_element){
@@ -236,54 +522,74 @@ high_leveler <- function(kingdom_list_element){
 }
 
 # apply function
-kingdom_list <- tcga_counts$counts$kingdom
+kingdom_cpm_list <- tcga_counts$counts$kingdom
 high_level_vars <- map(kingdom_list, high_leveler)
 names(high_level_vars) <- names(kingdom_list)
 high_level_vars
+```
 
+Start with this block 
+```{r}
 # get high level taxonomy data for corrected genus CPM
 kingdom_lookup <- taxonomy_nomissing %>%
   dplyr::select(Superkingdom, Genus) %>%
   print()
 
-corrected_high_level_vars <- genus_corrected_df_list %>%
-  map(~ as.matrix(.)) %>%
-  map(~ t(.)) %>%
-  map(~ as.data.frame(.)) %>%
-  map(~ rownames_to_column(., var = "Genus")) %>%
-  map(~ as_tibble(.)) %>%
-  map(~ left_join(., kingdom_lookup, by = "Genus")) %>%
-  map(~ select(., Superkingdom, everything())) %>%
-  map(~ select(., -Genus)) %>%
-  # check for NAs or other weird results
-  map(~ arrange(., Superkingdom)) %>%
-  map(~ group_by(., Superkingdom)) %>%
-  map(~ summarise_all(., sum)) %>%
-  map(~ as.data.frame(.)) %>%
-  map(~ column_to_rownames(., var = "Superkingdom")) %>%
-  map(~ as.matrix(.)) %>%
-  map(~ t(.)) %>%
-  map(~ as.data.frame(.)) %>%
-  map(~ rownames_to_column(., var = "tcga_barcode")) %>%
-  map(~ as_tibble(.)) %>%
-  map(~ select(., 
-    tcga_barcode, 
-    bacteria = Bacteria,
-    viruses = Virus,
-    archaea = Archaea,
-    eukaryota = Eukaryota)) %>%
-  map(~ mutate(., microbial_cpm = viruses + archaea + bacteria + eukaryota)) %>%
-  map(~ mutate(., 
-    across(-c(tcga_barcode, microbial_cpm), 
-    ~ . / microbial_cpm, 
-    .names = "frac_{.col}"))) %>%
-  print()
+# test variable
+tcga_list <- corrected_cpm_df_list
+
+corrected_cpm_df_list[[1]][1:5, 1:5]
+uncorrected_cpm_df_list[[1]][1:5, 1:5]
+corrected_counts_df_list[[1]][1:5, 1:5]
+uncorrected_counts_df_list[[1]][1:5, 1:5]
+corrected_microcpm_df_list[[1]][1:5, 1:5]
+uncorrected_microcpm_df_list[[1]][1:5, 1:5]
+
+# function that takes a list of dataframes as input
+# where each dataframe is a single tumor type
+higher_leveler <- function(tcga_list){
+  tcga_list %>%
+    # repair the data
+    map(~ as.matrix(.)) %>%
+    map(~ t(.)) %>%
+    map(~ as.data.frame(.)) %>%
+    map(~ rownames_to_column(., var = "Genus")) %>%
+    map(~ as_tibble(.)) %>%
+    map(~ ) %>%
+    map(~ left_join(., kingdom_lookup, by = "Genus")) %>%
+    map(~ select(., Superkingdom, everything())) %>%
+    map(~ select(., -Genus)) %>%
+    # check for NAs or other weird results
+    map(~ arrange(., Superkingdom)) %>%
+    map(~ group_by(., Superkingdom)) %>%
+    map(~ summarise_all(., sum)) %>%
+    map(~ as.data.frame(.)) %>%
+    map(~ column_to_rownames(., var = "Superkingdom")) %>%
+    map(~ as.matrix(.)) %>%
+    map(~ t(.)) %>%
+    map(~ as.data.frame(.)) %>%
+    map(~ rownames_to_column(., var = "tcga_barcode")) %>%
+    map(~ as_tibble(.)) %>%
+    map(~ select(., 
+      tcga_barcode, 
+      bacteria = Bacteria,
+      viruses = Virus,
+      archaea = Archaea,
+      eukaryota = Eukaryota)) %>%
+    map(~ mutate(., microbial_cpm = viruses + archaea + bacteria + eukaryota)) %>%
+    map(~ mutate(., 
+      across(-c(tcga_barcode, microbial_cpm), 
+      ~ . / microbial_cpm, 
+      .names = "frac_{.col}")))
+}
+
+hilevel_corrected_cpm <- higher_leveler(corrected_cpm_df_list)
 ```
 
 ## Write out results
 ```{r}
 genus_analysis_list <- list("genus_cpm_list" = tcga_counts$counts$genus,
-     "genus_alpha" = genus_alpha,
+     "genus_cpm_alpha" = genus_cpm_alpha,
      "corrected_genus_alpha" = genus_corrected_alpha,
      "high_level_vars" = high_level_vars,
      "corrected_high_level_vars" = corrected_high_level_vars,
@@ -291,6 +597,9 @@ genus_analysis_list <- list("genus_cpm_list" = tcga_counts$counts$genus,
      "imm_cor" = tcga_counts$imm_cor,
      "taxonomy" = taxonomy_nomissing)
 saveRDS(genus_analysis_list, "data/genus_analysis_list.rds")
+
+species_analysis_list <- list("species_cpm_list" = tcga_counts$counts$species,
+    "")
 ```
 
 
