@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="Michael Leukam" />
+
+<meta name="date" content="2021-02-03" />
+
+<title>derive_vars</title>
+
+<script src="site_libs/header-attrs-2.9/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/master/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">tcga_micro</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+<li>
+  <a href="license.html">License</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/mleukam/tcga_micro">
+    <span class="fa fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">derive_vars</h1>
+<h4 class="author">Michael Leukam</h4>
+<h4 class="date">2021-02-03</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span> workflowr <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks"> Checks <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> </a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2021-08-05
+</p>
+<p>
+<strong>Checks:</strong> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> 6 <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> 1
+</p>
+<p>
+<strong>Knit directory:</strong> <code>tcga_micro/</code> <span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed."> </span>
+</p>
+<p>
+This reproducible <a href="http://rmarkdown.rstudio.com">R Markdown</a> analysis was created with <a
+  href="https://github.com/jdblischak/workflowr">workflowr</a> (version 1.6.2). The <em>Checks</em> tab describes the reproducibility checks that were applied when the results were created. The <em>Past versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>R Markdown file:</strong> up-to-date </a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git repository, you know the exact version of the code that produced these results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Environment:</strong> empty </a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the global environment can affect the analysis in your R Markdown file in unknown ways. For reproduciblity it’s best to always run the code in an empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20201014code"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Seed:</strong> <code>set.seed(20201014)</code> </a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20201014code" class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20201014)</code> was run prior to running the code in the R Markdown file. Setting a seed ensures that any results that rely on randomness, e.g. subsampling or permutations, are reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Session information:</strong> recorded </a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package versions is critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Cache:</strong> none </a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be confident that you successfully produced the results during this run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongabsolute"> <span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span> <strong>File paths:</strong> absolute </a>
+</p>
+</div>
+<div id="strongFilepathsstrongabsolute" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Using absolute paths to the files within your workflowr project makes it difficult for you and others to run your code on a different machine. Change the absolute path(s) below to the suggested relative path(s) to make your code more reproducible.
+</p>
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th style="text-align:left;">
+absolute
+</th>
+<th style="text-align:left;">
+relative
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+~/Projects/tcga_micro/data/imm_cor_souce.tsv
+</td>
+<td style="text-align:left;">
+data/imm_cor_souce.tsv
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreea2d5153fca6f80a26203589fb4c85a8a54389f8etargetblanka2d5153a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/a2d5153fca6f80a26203589fb4c85a8a54389f8e" target="_blank">a2d5153</a> </a>
+</p>
+</div>
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreea2d5153fca6f80a26203589fb4c85a8a54389f8etargetblanka2d5153a" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/a2d5153fca6f80a26203589fb4c85a8a54389f8e" target="_blank">a2d5153</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .DS_Store
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+    Ignored:    corrected_genus_cpm_expressionset.rds
+    Ignored:    data/2021_01_11_readcounts.csv
+    Ignored:    data/2021_01_20_readcounts.csv
+    Ignored:    data/africa_metadata.csv
+    Ignored:    data/africa_mode1.csv
+    Ignored:    data/genus_analysis_list.rds
+    Ignored:    data/imm_cor_souce.tsv
+    Ignored:    data/mode2_tcga_counts_list.rds
+    Ignored:    data/mode2_tcga_counts_list_clean.rds
+    Ignored:    data/tcga_counts_list_mode2.rds
+    Ignored:    data/tcga_proj_taxonomy.csv
+    Ignored:    data/tcga_proj_taxonomy.rds
+    Ignored:    data/tcga_proj_taxonomy_nomissing.csv
+    Ignored:    data/tcga_proj_taxonomy_nomissing.rds
+    Ignored:    data/totreads_list_backup.rds
+    Ignored:    data/totreads_list_mode2.rds
+    Ignored:    output/.DS_Store
+    Ignored:    output/.Rapp.history
+    Ignored:    output/africa/
+    Ignored:    output/cbseq_corrected_genus_counts_expressionset.rds
+    Ignored:    output/corrected_genus_counts_expressionset.rds
+    Ignored:    output/corrected_genus_cpm_expressionset.rds
+    Ignored:    output/corrected_genus_microcpm_expressionset.rds
+    Ignored:    output/display_genus_immune_correlations_pearson.xlsx
+    Ignored:    output/display_genus_immune_correlations_spearman.xlsx
+    Ignored:    output/display_genus_summary_correlations_spearman.xlsx
+    Ignored:    output/draft_mode2_clindat.csv
+    Ignored:    output/draft_mode2_counts_rowformat.csv
+    Ignored:    output/genus_combined_expressionsets.rds
+    Ignored:    output/genus_counts_alldata.rds
+    Ignored:    output/genus_immune_correlations_pearson.rds
+    Ignored:    output/genus_immune_correlations_spearman.rds
+    Ignored:    output/genus_sumvar_correlations_pearson.rds
+    Ignored:    output/genus_sumvar_correlations_spearman.rds
+    Ignored:    output/global_high_level_correlations.csv
+    Ignored:    output/limma_corrected_genus_counts_expressionset.rds
+    Ignored:    output/mode2_counts_columnformat_draft.csv
+    Ignored:    output/plots/
+    Ignored:    output/tcga_batchcorrected_correlations_pearson.xlsx
+    Ignored:    output/tcga_batchcorrected_correlations_spearman.xlsx
+    Ignored:    output/tcga_correlations_pearson.xlsx
+    Ignored:    output/tcga_correlations_spearman.xlsx
+    Ignored:    output/tcga_global_batchcorrected_correlations_spearman.xlsx
+    Ignored:    output/unc_genus_microcpm_expressionset.rds
+    Ignored:    output/uncorrected_genus_counts_expressionset.rds
+    Ignored:    output/uncorrected_genus_cpm_expressionset.rds
+
+Unstaged changes:
+    Modified:   analysis/batch_correction.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in this status report because it is ok for generated content to have uncommitted changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were made to the R Markdown (<code>analysis/derive_vars.Rmd</code>) and HTML (<code>docs/derive_vars.html</code>) files. If you’ve configured a remote Git repository (see <code>?wflow_git_remote</code>), click on the hyperlinks in the table below to view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/a2d5153fca6f80a26203589fb4c85a8a54389f8e/analysis/derive_vars.Rmd" target="_blank">a2d5153</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-08-05
+</td>
+<td>
+wflow_publish(“analysis/derive_vars.Rmd”)
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/55479284692031f8f1abb0c935980d8a2316db62/analysis/derive_vars.Rmd" target="_blank">5547928</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-06-02
+</td>
+<td>
+project updates for archive
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/e74ce69ba752cf55a9839b020eb41321f0d6445f/analysis/derive_vars.Rmd" target="_blank">e74ce69</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-02-03
+</td>
+<td>
+wflow_git_commit(all = TRUE)
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/bfcc57ff144d7b776faa4b2e235678958d25a13a/analysis/derive_vars.Rmd" target="_blank">bfcc57f</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-28
+</td>
+<td>
+working correlation scripts for genus and summary variables
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/9bc98f0a56aa79f48267cc5c1163accb7afbd9e3/analysis/derive_vars.Rmd" target="_blank">9bc98f0</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-21
+</td>
+<td>
+updates with cpm
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/ba97fe4710595798779b1793793c658c1692cce6/analysis/derive_vars.Rmd" target="_blank">ba97fe4</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-20
+</td>
+<td>
+updated to collect results of get_reads.sh
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/9ea4930c6ad79634770abbaae9d0f879715cf61a/analysis/derive_vars.Rmd" target="_blank">9ea4930</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-20
+</td>
+<td>
+updates to include kingdown and phylum data
+</td>
+</tr>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/6162be468238d0fc50bd2cd17d50111a17ab99cb/analysis/derive_vars.Rmd" target="_blank">6162be4</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2020-10-14
+</td>
+<td>
+initial commit
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="setup" class="section level2">
+<h2>Setup</h2>
+<p>Clear the workspace and set seed</p>
+<pre class="r"><code>rm(list=ls())
+set.seed(818)</code></pre>
+<p>Read in packages</p>
+<pre class="r"><code># Bioconductor
+library(Biobase)</code></pre>
+<pre><code>Loading required package: BiocGenerics</code></pre>
+<pre><code>Loading required package: parallel</code></pre>
+<pre><code>
+Attaching package: &#39;BiocGenerics&#39;</code></pre>
+<pre><code>The following objects are masked from &#39;package:parallel&#39;:
+
+    clusterApply, clusterApplyLB, clusterCall, clusterEvalQ,
+    clusterExport, clusterMap, parApply, parCapply, parLapply,
+    parLapplyLB, parRapply, parSapply, parSapplyLB</code></pre>
+<pre><code>The following objects are masked from &#39;package:stats&#39;:
+
+    IQR, mad, sd, var, xtabs</code></pre>
+<pre><code>The following objects are masked from &#39;package:base&#39;:
+
+    anyDuplicated, append, as.data.frame, basename, cbind, colnames,
+    dirname, do.call, duplicated, eval, evalq, Filter, Find, get, grep,
+    grepl, intersect, is.unsorted, lapply, Map, mapply, match, mget,
+    order, paste, pmax, pmax.int, pmin, pmin.int, Position, rank,
+    rbind, Reduce, rownames, sapply, setdiff, sort, table, tapply,
+    union, unique, unsplit, which.max, which.min</code></pre>
+<pre><code>Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    &#39;browseVignettes()&#39;. To cite Bioconductor, see
+    &#39;citation(&quot;Biobase&quot;)&#39;, and for packages &#39;citation(&quot;pkgname&quot;)&#39;.</code></pre>
+<pre class="r"><code>library(vegan)</code></pre>
+<pre><code>Loading required package: permute</code></pre>
+<pre><code>Loading required package: lattice</code></pre>
+<pre><code>This is vegan 2.5-7</code></pre>
+<pre class="r"><code># CRAN
+library(Matrix.utils)</code></pre>
+<pre><code>Loading required package: Matrix</code></pre>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──</code></pre>
+<pre><code>✓ ggplot2 3.3.5     ✓ purrr   0.3.4
+✓ tibble  3.1.2     ✓ dplyr   1.0.7
+✓ tidyr   1.1.3     ✓ stringr 1.4.0
+✓ readr   1.4.0     ✓ forcats 0.5.1</code></pre>
+<pre><code>── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+x dplyr::combine()    masks Biobase::combine(), BiocGenerics::combine()
+x tidyr::expand()     masks Matrix::expand()
+x dplyr::filter()     masks stats::filter()
+x dplyr::lag()        masks stats::lag()
+x tidyr::pack()       masks Matrix::pack()
+x ggplot2::Position() masks BiocGenerics::Position(), base::Position()
+x tidyr::unpack()     masks Matrix::unpack()</code></pre>
+<pre class="r"><code>library(ggpubr)</code></pre>
+<pre class="r"><code>knitr::opts_chunk$set(eval = FALSE)</code></pre>
+<p>Read in data From tcga_data_prep</p>
+<pre class="r"><code># tcga_counts &lt;- readRDS(&quot;data/comb_tcga_counts_list.rds&quot;)
+
+# mode 2 data
+# tcga_counts &lt;- readRDS(&quot;data/mode2_tcga_counts_list.rds&quot;)
+
+# str(tcga_counts, max.level = 2)
+# genus_tbl &lt;- tcga_counts$counts$genus$STAD %&gt;%
+#  print()
+# imm_cor_tbl &lt;- tcga_counts$imm_cor$STAD %&gt;%
+#   print()
+
+# batch corrected and uncorrected data
+genus_counts_es_list &lt;- readRDS(&quot;output/genus_combined_expressionsets.rds&quot;)
+str(genus_counts_es_list, max.level = 1)
+
+genus_counts_es_list
+
+# function for converting expression set into list of tumors
+bytumortyper &lt;- function(es){
+  clindat &lt;- pData(es) %&gt;% 
+    rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+    as_tibble()
+  proj_lookup &lt;- clindat %&gt;%
+    select(tcga_barcode, tcga_proj)
+  counts &lt;- exprs(es) %&gt;%
+    t() %&gt;%
+    print() %&gt;%
+    as.data.frame() %&gt;%
+    rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+    as_tibble() %&gt;%
+    left_join(proj_lookup) %&gt;%
+    select(tcga_proj, tcga_barcode, everything()) %&gt;%
+    group_by(tcga_proj) %&gt;%
+    nest() %&gt;%
+    deframe()
+  list(&quot;counts&quot; = counts, &quot;clindat&quot; = clindat)
+}
+
+# test
+corrected_cpm &lt;- bytumortyper(genus_counts_es_list$cbseq_corrected_counts)
+
+# apply to list of ES
+counts_data &lt;- map(genus_counts_es_list, bytumortyper)
+str(counts_data, max.level = 2)</code></pre>
+<pre class="bash"><code>sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/ ~/sshfs_mount/TCGA
+
+cd ~/sshfs_mount/TCGA/TCGA_STAD/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/Analysis/7c564146-979c-4b3d-9a0d-b9a1e0d07ca2/taxonomic_ranks</code></pre>
+<p>Read in taxonomy data</p>
+<pre class="r"><code>taxonomy &lt;- read_csv(&quot;data/tcga_proj_taxonomy.csv&quot;)
+taxonomy_nomissing &lt;- readRDS(&quot;data/tcga_proj_taxonomy_nomissing.rds&quot;)</code></pre>
+<p>Goal: % microbial vs total reads % microbial vs uniquely mapped on human reads % viral (as above) bacteria vs microbes Number of different species Genera, species, strains per million reads mapped on human Genera, species, strain diversity and distribution descriptors (Shannon, Simpson, etc) Genera abundance, species abundance, and strain abundance as correlates</p>
+</div>
+<div id="descriptive-statistics" class="section level2">
+<h2>Descriptive Statistics</h2>
+<div id="distribution" class="section level4">
+<h4>Distribution</h4>
+<p>Visualize distributions</p>
+<pre class="r"><code># make tidy dataframes for plotting
+# run this over the entire counts data object
+tidy_generator &lt;- function(listelement){
+  listelement$counts %&gt;%
+    map(., function(df){
+      df %&gt;% 
+        pivot_longer(-tcga_barcode, 
+          names_to = &quot;genus&quot;, 
+          values_to = &quot;counts&quot;) %&gt;%
+        arrange(desc(counts))})
+}
+
+# make tidy frames with cpm
+tidy_counts &lt;- map(counts_data, tidy_generator)
+
+str(tidy_counts, max.level = 1)
+str(tidy_counts, max.level = 2)
+
+# counts distribution
+counts_dist_plotter &lt;- function(element){
+  map(element, function(df){
+    df %&gt;%
+      ggplot(aes(x = counts, color = tcga_barcode)) +
+      geom_density() +
+      theme(legend.position = &quot;none&quot;)}) %&gt;%
+  ggarrange(plotlist = .) %&gt;%
+  annotate_figure(., 
+    top = text_grob(name(listelement), 
+    color = &quot;black&quot;, 
+    face = &quot;bold&quot;, 
+    size = 14))
+}
+
+dist_plot_list &lt;- map(tidy_counts, counts_dist_plotter)
+
+str(dist_plot_list, max.level = 1)
+# plot raw distributions for each tumor type
+
+dist_plot_list[[&quot;corrected_cpm&quot;]]
+dist_plot_list[[&quot;uncorrected_cpm&quot;]]
+dist_plot_list[[&quot;corrected_counts&quot;]]
+dist_plot_list[[&quot;uncorrected_counts&quot;]]
+dist_plot_list[[&quot;corrected_microcpm&quot;]]
+dist_plot_list[[&quot;uncorrected_microcpm&quot;]]
+
+# do.call(ggarrange, dist_plot_list_genus_cpm_corrected[[&quot;corrected_cpm&quot;]]) %&gt;%
+#  annotate_figure(., top = text_grob(&quot;Corrected Genus CPM by Tumor Type&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))
+          
+# log cpm distribution
+log_dist_plotter &lt;- function(df){
+  plot &lt;- df %&gt;%
+    mutate(lcounts = log(counts)) %&gt;%
+    dplyr::filter(lcounts &gt; -100) %&gt;%
+    ggplot(aes(x = lcounts), color = tcga_barcode) +
+      geom_density() +
+      theme(legend.position = &quot;none&quot;) +
+      expand_limits(x = c(4, 5))
+}
+# log cpm density plots
+log_plot_list_genus_cpm_corrected &lt;- map(tidy_genus_cpm_corrected, log_dist_plotter)
+names(log_plot_list_genus_cpm_corrected) &lt;- names(tidy_genus_cpm_corrected)
+do.call(ggarrange, log_plot_list_genus_cpm_corrected) %&gt;%
+  annotate_figure(., top = text_grob(&quot;Corrected log(CPM) by Tumor Type&quot;, color = &quot;black&quot;, face = &quot;bold&quot;, size = 14))</code></pre>
+</div>
+</div>
+<div id="derive-new-variables" class="section level2">
+<h2>Derive new variables</h2>
+<div id="cpm-alpha-diversity" class="section level4">
+<h4>CPM alpha diversity</h4>
+<pre class="r"><code># get measures of alpha-diversity
+alpha_getter &lt;- function(df){
+# get global basic diversity indices
+  shannon &lt;- df %&gt;% 
+    diversity(., index = &quot;shannon&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(shannon = value)
+  simpson &lt;- df %&gt;%
+    diversity(., index = &quot;simpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(simpson = value)
+  invsimpson &lt;- df %&gt;%
+    diversity(., index = &quot;invsimpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(invsimpson = value)
+  # get global pielou evenness measure
+  shanvect &lt;- df %&gt;%
+    diversity(., index = &quot;shannon&quot;)
+  pielou &lt;- tibble::enframe(shanvect/log(specnumber(df))) %&gt;%
+    rename(pielou_evenness = value)
+  # get global rarefied richness
+  df_round &lt;- df %&gt;%
+    as.matrix() %&gt;%
+    round(., digits = 0)
+  rar &lt;- rarefy(df_round, min(rowSums(df_round), na.rm = T)) %&gt;%
+    enframe() %&gt;%
+    rename(rar_rich = value)
+# get separate diversity indices for each superkingdom
+  # get vectors of genera belonging to each superkingdom
+  viral_genera &lt;- taxonomy_nomissing %&gt;%
+    dplyr::filter(Superkingdom == &quot;Virus&quot;) %&gt;%
+    pull(Genus)
+  bacterial_genera &lt;- taxonomy_nomissing %&gt;%
+    dplyr::filter(Superkingdom == &quot;Bacteria&quot;) %&gt;%
+    pull(Genus)
+  archaea_genera &lt;- taxonomy_nomissing %&gt;%
+    dplyr::filter(Superkingdom == &quot;Archaea&quot;) %&gt;%
+    pull(Genus)
+  eukaryota_genera &lt;- taxonomy_nomissing %&gt;%
+    dplyr::filter(Superkingdom == &quot;Eukaryota&quot;) %&gt;%
+    pull(Genus)
+  # compute separate diversity metrics
+  # virus
+  viral_df &lt;- df %&gt;% 
+    dplyr::select(any_of(viral_genera))
+  viral_shannon &lt;- viral_df %&gt;% 
+    diversity(., index = &quot;shannon&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(viral_shannon = value)
+  viral_simpson &lt;- viral_df %&gt;% 
+    diversity(., index = &quot;simpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(viral_shannon = value)
+  viral_invsimpson &lt;- viral_df %&gt;% 
+    dplyr::select(any_of(viral_genera)) %&gt;%
+    diversity(., index = &quot;invsimpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(viral_shannon = value)
+  viral_shanvect &lt;- viral_df %&gt;%
+    diversity(., index = &quot;shannon&quot;)
+  viral_pielou &lt;- enframe(viral_shanvect/log(specnumber(viral_df))) %&gt;%
+    rename(viral_pielou_evenness = value)
+  viral_df_round &lt;- viral_df %&gt;%
+    as.matrix() %&gt;%
+    round(., digits = 0)
+  viral_rar &lt;- rarefy(viral_df_round, min(rowSums(viral_df_round), na.rm = T)) %&gt;%
+    enframe() %&gt;%
+    rename(viral_rar_rich = value)
+  # bacterial
+  bacterial_df &lt;- df %&gt;% 
+    dplyr::select(any_of(bacterial_genera))
+  bacterial_shannon &lt;- bacterial_df %&gt;% 
+    diversity(., index = &quot;shannon&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(bacterial_shannon = value)
+  bacterial_simpson &lt;- bacterial_df %&gt;% 
+    diversity(., index = &quot;simpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(bacterial_shannon = value)
+  bacterial_invsimpson &lt;- bacterial_df %&gt;% 
+    dplyr::select(any_of(bacterial_genera)) %&gt;%
+    diversity(., index = &quot;invsimpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(bacterial_shannon = value)
+  bacterial_shanvect &lt;- bacterial_df %&gt;%
+    diversity(., index = &quot;shannon&quot;)
+  bacterial_pielou &lt;- enframe(bacterial_shanvect/log(specnumber(bacterial_df))) %&gt;%
+    rename(bacterial_pielou_evenness = value)
+  bacterial_df_round &lt;- bacterial_df %&gt;%
+    as.matrix() %&gt;%
+    round(., digits = 0)
+  bacterial_rar &lt;- rarefy(bacterial_df_round, min(rowSums(bacterial_df_round), na.rm = T)) %&gt;%
+    enframe() %&gt;%
+    rename(bacterial_rar_rich = value)
+  # archaea
+  archaea_df &lt;- df %&gt;% 
+    dplyr::select(any_of(archaea_genera))
+  archaea_shannon &lt;- archaea_df %&gt;% 
+    diversity(., index = &quot;shannon&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(archaea_shannon = value)
+  archaea_simpson &lt;- archaea_df %&gt;% 
+    diversity(., index = &quot;simpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(archaea_shannon = value)
+  archaea_invsimpson &lt;- archaea_df %&gt;% 
+    dplyr::select(any_of(archaea_genera)) %&gt;%
+    diversity(., index = &quot;invsimpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(archaea_shannon = value)
+  archaea_shanvect &lt;- archaea_df %&gt;%
+    diversity(., index = &quot;shannon&quot;)
+  archaea_pielou &lt;- enframe(archaea_shanvect/log(specnumber(archaea_df))) %&gt;%
+    rename(archaea_pielou_evenness = value)
+  archaea_df_round &lt;- archaea_df %&gt;%
+    as.matrix() %&gt;%
+    round(., digits = 0)
+  archaea_rar &lt;- rarefy(archaea_df_round, min(rowSums(archaea_df_round), na.rm = T)) %&gt;%
+    enframe() %&gt;%
+    rename(archaea_rar_rich = value)
+  # eukaryota
+  eukaryota_df &lt;- df %&gt;% 
+    dplyr::select(any_of(eukaryota_genera))
+  eukaryota_shannon &lt;- eukaryota_df %&gt;% 
+    diversity(., index = &quot;shannon&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(eukaryota_shannon = value)
+  eukaryota_simpson &lt;- eukaryota_df %&gt;% 
+    diversity(., index = &quot;simpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(eukaryota_shannon = value)
+  eukaryota_invsimpson &lt;- eukaryota_df %&gt;% 
+    dplyr::select(any_of(eukaryota_genera)) %&gt;%
+    diversity(., index = &quot;invsimpson&quot;) %&gt;%
+    enframe() %&gt;%
+    rename(eukaryota_shannon = value)
+  eukaryota_shanvect &lt;- eukaryota_df %&gt;%
+    diversity(., index = &quot;shannon&quot;)
+  eukaryota_pielou &lt;- tibble::enframe(eukaryota_shanvect/log(specnumber(eukaryota_df))) %&gt;%
+    rename(eukaryota_pielou_evenness = value)
+  eukaryota_df_round &lt;- eukaryota_df %&gt;%
+    as.matrix() %&gt;%
+    round(., digits = 0)
+  eukaryota_rar &lt;- rarefy(eukaryota_df_round, min(rowSums(eukaryota_df_round), na.rm = T)) %&gt;%
+    enframe() %&gt;%
+    rename(eukaryota_rar_rich = value)
+# join columns in single tbl
+  alpha_df &lt;- shannon %&gt;%
+    left_join(simpson, by = &quot;name&quot;) %&gt;%
+    left_join(invsimpson, by = &quot;name&quot;) %&gt;%
+    left_join(pielou, by = &quot;name&quot;) %&gt;%
+    left_join(rar, by = &quot;name&quot;) %&gt;%
+    left_join(viral_shannon, by = &quot;name&quot;) %&gt;%
+    left_join(viral_simpson, by = &quot;name&quot;) %&gt;%
+    left_join(viral_invsimpson, by = &quot;name&quot;) %&gt;%
+    left_join(viral_pielou, by = &quot;name&quot;) %&gt;%
+    left_join(viral_rar, by = &quot;name&quot;) %&gt;%
+    left_join(bacterial_shannon, by = &quot;name&quot;) %&gt;%
+    left_join(bacterial_simpson, by = &quot;name&quot;) %&gt;%
+    left_join(bacterial_invsimpson, by = &quot;name&quot;) %&gt;%
+    left_join(bacterial_pielou, by = &quot;name&quot;) %&gt;%
+    left_join(bacterial_rar, by = &quot;name&quot;) %&gt;%
+    left_join(archaea_shannon, by = &quot;name&quot;) %&gt;%
+    left_join(archaea_simpson, by = &quot;name&quot;) %&gt;%
+    left_join(archaea_invsimpson, by = &quot;name&quot;) %&gt;%
+    left_join(archaea_pielou, by = &quot;name&quot;) %&gt;%
+    left_join(archaea_rar, by = &quot;name&quot;) %&gt;%
+    left_join(eukaryota_shannon, by = &quot;name&quot;) %&gt;%
+    left_join(eukaryota_simpson, by = &quot;name&quot;) %&gt;%
+    left_join(eukaryota_invsimpson, by = &quot;name&quot;) %&gt;%
+    left_join(eukaryota_pielou, by = &quot;name&quot;) %&gt;%
+    left_join(eukaryota_rar, by = &quot;name&quot;) %&gt;%
+    dplyr::rename(tcga_barcode = name)
+  alpha_df
+}
+
+# prepare data------------------------------------------
+# get counts in dataframe
+
+str(counts_data, max.level = 2)
+str(counts_data$cbseq_corrected_counts, max.level = 2)
+counts_data$cbseq_corrected_counts$counts$BRCA
+
+make_counts_df &lt;- function(df){
+  df %&gt;%
+    # add up any duplicate rows to summarize at genus/sample level
+    dplyr::group_by(tcga_barcode) %&gt;%
+    summarise_all(sum) %&gt;%
+    # remove non-numeric values
+    filter(across(everything(), ~ !is.nan(.x))) %&gt;%
+    # eliminate negative values
+    mutate(across(everything(), ~ ifelse(.x &lt; 0, 0, .x))) %&gt;%
+    # convert to dataframe with rownames
+    as.data.frame() %&gt;%
+    column_to_rownames(var = &quot;tcga_barcode&quot;)
+}
+
+# apply df maker function to each of the data types
+cbseq_corrected_counts_df_list &lt;- map(
+  counts_data$cbseq_corrected_counts$counts, 
+  make_counts_df)
+
+uncorrected_counts_df_list &lt;- map(
+  counts_data$uncorrected_counts$counts, 
+  make_counts_df)
+
+limma_corrected_counts_df_list &lt;- map(
+  counts_data$limma_corrected_counts$counts, 
+  make_counts_df)
+
+# apply function to get alpha diversity
+cbseq_corrected_counts_alpha &lt;- map(
+  cbseq_corrected_counts_df_list, 
+  alpha_getter)
+uncorrected_counts_alpha &lt;- map(
+  uncorrected_counts_df_list, 
+  alpha_getter)
+limma_corrected_counts_alpha &lt;- map(
+  limma_corrected_counts_df_list, 
+  alpha_getter)</code></pre>
+<pre class="r"><code># plots
+cbseq_corrected_counts_alpha %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)
+
+cbseq_corrected_counts_alpha %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
+    geom_violin() +
+  expand_limits(x = 0, y = 0)</code></pre>
+</div>
+<div id="high-level-taxonomy" class="section level4">
+<h4>High-level taxonomy</h4>
+<p>This block is now defunct</p>
+<pre class="r"><code># read in repaired toxonomy
+taxonomy_nomissing &lt;- readRDS(&quot;data/tcga_proj_taxonomy_nomissing.rds&quot;)
+# problem - Tissierella_Class is still called ---_Class
+taxonomy_nomissing &lt;- taxonomy_nomissing %&gt;% 
+  mutate(Genus = ifelse(Genus ==    &quot;---_Class&quot;, &quot;Tissierella_Class&quot;, Genus)) %&gt;%
+  arrange(Genus) %&gt;%
+  print()
+
+# repair counts not generated with repaired taxonomy
+kingdom_list_element &lt;- tcga_counts$cpm_counts$kingdom_cpm$ACC
+
+high_leveler &lt;- function(kingdom_list_element){
+  fractional_kingdom &lt;- kingdom_list_element %&gt;%
+    dplyr::rename(viral = `---`, archaea = Archaea, 
+                  bacteria = Bacteria, 
+                  eukaryota = Eukaryota) %&gt;%
+    mutate(total_cpm = viral + archaea + bacteria + eukaryota) %&gt;%
+    mutate(across(-c(tcga_barcode, total_cpm), ~ . / total_cpm, .names = &quot;frac_{.col}&quot;)) %&gt;%
+    dplyr::rename(microbe_cpm = total_cpm)
+}
+
+# apply function
+kingdom_cpm_list &lt;- tcga_counts$counts$kingdom
+high_level_vars &lt;- map(kingdom_list, high_leveler)
+names(high_level_vars) &lt;- names(kingdom_list)
+high_level_vars</code></pre>
+<p>Start with this block</p>
+<pre class="r"><code># get high level taxonomy data for corrected genus CPM
+kingdom_lookup &lt;- taxonomy_nomissing %&gt;%
+  dplyr::select(Superkingdom, Genus) %&gt;%
+  # repair Tissierella_Class
+  mutate(Genus = ifelse(Genus == &quot;---_Class&quot;, &quot;Tissierella_Class&quot;, Genus)) %&gt;%
+  print()
+
+# test variable
+tcga_list &lt;- cbseq_corrected_counts_df_list
+
+cbseq_corrected_counts_df_list[[1]][1:10, 1:3]
+uncorrected_counts_df_list[[1]][1:10, 1:3]
+limma_corrected_counts_df_list[[1]][1:10, 1:3]
+
+# function that takes a list of dataframes as input
+# where each dataframe is a single tumor type
+higher_leveler &lt;- function(tcga_list){
+  tcga_list %&gt;%
+    # repair the data
+    map(~ as.matrix(.)) %&gt;%
+    map(~ t(.)) %&gt;%
+    map(~ as.data.frame(.)) %&gt;%
+    map(~ rownames_to_column(., var = &quot;Genus&quot;)) %&gt;%
+    map(~ as_tibble(.)) %&gt;%
+    # map(~ ) %&gt;%
+    map(~ left_join(., kingdom_lookup, by = &quot;Genus&quot;)) %&gt;%
+    map(~ select(., Superkingdom, everything())) %&gt;%
+    map(~ select(., -Genus)) %&gt;%
+    # check for NAs or other weird results
+    map(~ arrange(., Superkingdom)) %&gt;%
+    map(~ group_by(., Superkingdom)) %&gt;%
+    map(~ summarise_all(., sum)) %&gt;%
+    map(~ as.data.frame(.)) %&gt;%
+    map(~ column_to_rownames(., var = &quot;Superkingdom&quot;)) %&gt;%
+    map(~ as.matrix(.)) %&gt;%
+    map(~ t(.)) %&gt;%
+    map(~ as.data.frame(.)) %&gt;%
+    map(~ rownames_to_column(., var = &quot;tcga_barcode&quot;)) %&gt;%
+    map(~ as_tibble(.)) %&gt;%
+    map(~ select(., 
+      tcga_barcode, 
+      bacteria = Bacteria,
+      viruses = Virus,
+      archaea = Archaea,
+      eukaryota = Eukaryota)) %&gt;%
+    map(~ mutate(., microbial_cpm = viruses + archaea + bacteria + eukaryota)) %&gt;%
+    map(~ mutate(., 
+      across(-c(tcga_barcode, microbial_cpm), 
+      ~ . / microbial_cpm, 
+      .names = &quot;frac_{.col}&quot;)))
+}
+
+hilevel_cbseq_corrected_counts &lt;- higher_leveler(cbseq_corrected_counts_df_list)
+
+hilevel_cbseq_uncorrected_counts &lt;- higher_leveler(uncorrected_counts_df_list)
+
+hilevel_limma_corrected_counts &lt;- higher_leveler(limma_corrected_counts_df_list)</code></pre>
+</div>
+</div>
+<div id="can-start-here-needs-repair-write-out-results" class="section level2">
+<h2>CAN START HERE NEEDS REPAIR Write out results</h2>
+<pre class="r"><code>genus_analysis_list &lt;- readRDS(genus_analysis_list, &quot;data/genus_analysis_list.rds&quot;)
+
+imm_cor &lt;- read_delim(&quot;~/Projects/tcga_micro/data/imm_cor_souce.tsv&quot;, delim = &quot;\t&quot;)
+
+# limma corrected counts
+limma_hilevel_flat &lt;- hilevel_limma_corrected_counts %&gt;%
+  bind_rows() %&gt;%
+  print()
+
+limma_alpha_flat &lt;- limma_corrected_counts_alpha %&gt;%
+  bind_rows() %%
+  print()
+
+pData(genus_counts_es_list$limma_corrected_counts) %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble() %&gt;%
+  left_join(
+    
+    )
+  left_join(limma_corrected_counts_alpha, by = &quot;tcga_barcode&quot;)
+  
+
+# cbseq corrected counts
+genus_counts_es_list$cbseq_corrected_counts
+  
+# uncorrected counts
+genus_counts_es_list$uncorrected_counts
+
+genus_analysis_list &lt;- list(
+  &quot;cbseq_corrected_high_level_vars&quot; = hilevel_cbseq_corrected_counts,
+  &quot;limma_corrected_high_level_vars&quot; = hilevel_limma_corrected_counts,
+  &quot;uncorrected_high_level_vars&quot; = uncorrected_counts_df_list,
+  &quot;cbseq_corrected_alpha&quot; = cbseq_corrected_counts_alpha,
+  &quot;limma_corrected_alpha&quot; = limma_corrected_counts_alpha,
+  &quot;uncorrected_alpha&quot; = uncorrected_counts_alpha)
+saveRDS(genus_analysis_list, &quot;data/genus_analysis_list.rds&quot;)</code></pre>
+<div id="beta-diversity" class="section level4">
+<h4>Beta diversity</h4>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span> Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre class="r"><code>sessionInfo()</code></pre>
+</div>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+http://docs.mathjax.org/en/latest/configuration.html.  This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
