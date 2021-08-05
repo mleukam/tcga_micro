@@ -18,8 +18,11 @@ set.seed(818)
 
 Read in packages
 ```{r}
+# Bioconductor
 library(Biobase)
 library(vegan)
+
+# CRAN
 library(Matrix.utils)
 library(tidyverse)
 library(ggpubr)
@@ -47,6 +50,8 @@ From tcga_data_prep
 genus_counts_es_list <- readRDS("output/genus_combined_expressionsets.rds")
 str(genus_counts_es_list, max.level = 1)
 
+genus_counts_es_list
+
 # function for converting expression set into list of tumors
 bytumortyper <- function(es){
   clindat <- pData(es) %>% 
@@ -69,7 +74,7 @@ bytumortyper <- function(es){
 }
 
 # test
-corrected_cpm <- bytumortyper(genus_counts_es_list[[1]])
+corrected_cpm <- bytumortyper(genus_counts_es_list$cbseq_corrected_counts)
 
 # apply to list of ES
 counts_data <- map(genus_counts_es_list, bytumortyper)
@@ -124,8 +129,8 @@ str(tidy_counts, max.level = 1)
 str(tidy_counts, max.level = 2)
 
 # counts distribution
-counts_dist_plotter <- function(listelement){
-  map(listelement, function(df){
+counts_dist_plotter <- function(element){
+  map(element, function(df){
     df %>%
       ggplot(aes(x = counts, color = tcga_barcode)) +
       geom_density() +
@@ -356,8 +361,8 @@ alpha_getter <- function(df){
 # get counts in dataframe
 
 str(counts_data, max.level = 2)
-str(counts_data$corrected_counts, max.level = 2)
-counts_data$corrected_cpm$counts$BRCA
+str(counts_data$cbseq_corrected_counts, max.level = 2)
+counts_data$cbseq_corrected_counts$counts$BRCA
 
 make_counts_df <- function(df){
   df %>%
@@ -374,31 +379,34 @@ make_counts_df <- function(df){
 }
 
 # apply df maker function to each of the data types
-corrected_cpm_df_list <- map(counts_data$corrected_cpm$counts, make_counts_df)
+cbseq_corrected_counts_df_list <- map(
+  counts_data$cbseq_corrected_counts$counts, 
+  make_counts_df)
 
-uncorrected_cpm_df_list <- map(counts_data$uncorrected_cpm$counts, make_counts_df)
+uncorrected_counts_df_list <- map(
+  counts_data$uncorrected_counts$counts, 
+  make_counts_df)
 
-corrected_counts_df_list <- map(counts_data$corrected_counts$counts, make_counts_df)
-
-uncorrected_counts_df_list <- map(counts_data$uncorrected_counts$counts, make_counts_df)
-
-corrected_microcpm_df_list <- map(counts_data$corrected_microcpm$counts, make_counts_df)
-
-uncorrected_microcpm_df_list <- map(counts_data$uncorrected_microcpm$counts, make_counts_df)
+limma_corrected_counts_df_list <- map(
+  counts_data$limma_corrected_counts$counts, 
+  make_counts_df)
 
 # apply function to get alpha diversity
-corrected_cpm_alpha <- map(corrected_cpm_df_list, alpha_getter)
-uncorrected_cpm_alpha <- map(uncorrected_cpm_df_list, alpha_getter)
-corrected_counts_alpha <- map(corrected_counts_df_list, alpha_getter)
-uncorrected_counts_alpha <- map(uncorrected_counts_df_list, alpha_getter)
-corrected_microcpm_alpha <- map(corrected_microcpm_df_list, alpha_getter)
-uncorrected_microcpm_alpha <- map(uncorrected_microcpm_df_list, alpha_getter)
+cbseq_corrected_counts_alpha <- map(
+  cbseq_corrected_counts_df_list, 
+  alpha_getter)
+uncorrected_counts_alpha <- map(
+  uncorrected_counts_df_list, 
+  alpha_getter)
+limma_corrected_counts_alpha <- map(
+  limma_corrected_counts_df_list, 
+  alpha_getter)
 ```
 
 
 ```{r}
 # plots
-corrected_cpm_alpha %>%
+cbseq_corrected_counts_alpha %>%
   enframe() %>%
   unnest(value) %>%
   rename(tcga_proj = name) %>%
@@ -406,87 +414,7 @@ corrected_cpm_alpha %>%
     geom_violin() +
   expand_limits(x = 0, y = 0)
 
-corrected_cpm_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-uncorrected_cpm_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-uncorrected_cpm_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-corrected_counts_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-corrected_counts_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-uncorrected_counts_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-uncorrected_counts_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-corrected_microcpm_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-corrected_microcpm_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = simpson, fill = simpson)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-uncorrected_microcpm_alpha %>%
-  enframe() %>%
-  unnest(value) %>%
-  rename(tcga_proj = name) %>%
-  ggplot(aes(x = tcga_proj, y = shannon, fill = shannon)) +
-    geom_violin() +
-  expand_limits(x = 0, y = 0)
-
-uncorrected_microcpm_alpha %>%
+cbseq_corrected_counts_alpha %>%
   enframe() %>%
   unnest(value) %>%
   rename(tcga_proj = name) %>%
@@ -533,17 +461,16 @@ Start with this block
 # get high level taxonomy data for corrected genus CPM
 kingdom_lookup <- taxonomy_nomissing %>%
   dplyr::select(Superkingdom, Genus) %>%
+  # repair Tissierella_Class
+  mutate(Genus = ifelse(Genus == "---_Class", "Tissierella_Class", Genus)) %>%
   print()
 
 # test variable
-tcga_list <- corrected_cpm_df_list
+tcga_list <- cbseq_corrected_counts_df_list
 
-corrected_cpm_df_list[[1]][1:5, 1:5]
-uncorrected_cpm_df_list[[1]][1:5, 1:5]
-corrected_counts_df_list[[1]][1:5, 1:5]
-uncorrected_counts_df_list[[1]][1:5, 1:5]
-corrected_microcpm_df_list[[1]][1:5, 1:5]
-uncorrected_microcpm_df_list[[1]][1:5, 1:5]
+cbseq_corrected_counts_df_list[[1]][1:10, 1:3]
+uncorrected_counts_df_list[[1]][1:10, 1:3]
+limma_corrected_counts_df_list[[1]][1:10, 1:3]
 
 # function that takes a list of dataframes as input
 # where each dataframe is a single tumor type
@@ -555,7 +482,7 @@ higher_leveler <- function(tcga_list){
     map(~ as.data.frame(.)) %>%
     map(~ rownames_to_column(., var = "Genus")) %>%
     map(~ as_tibble(.)) %>%
-    map(~ ) %>%
+    # map(~ ) %>%
     map(~ left_join(., kingdom_lookup, by = "Genus")) %>%
     map(~ select(., Superkingdom, everything())) %>%
     map(~ select(., -Genus)) %>%
@@ -583,23 +510,52 @@ higher_leveler <- function(tcga_list){
       .names = "frac_{.col}")))
 }
 
-hilevel_corrected_cpm <- higher_leveler(corrected_cpm_df_list)
+hilevel_cbseq_corrected_counts <- higher_leveler(cbseq_corrected_counts_df_list)
+
+hilevel_cbseq_uncorrected_counts <- higher_leveler(uncorrected_counts_df_list)
+
+hilevel_limma_corrected_counts <- higher_leveler(limma_corrected_counts_df_list)
 ```
 
-## Write out results
+## CAN START HERE NEEDS REPAIR Write out results
 ```{r}
-genus_analysis_list <- list("genus_cpm_list" = tcga_counts$counts$genus,
-     "genus_cpm_alpha" = genus_cpm_alpha,
-     "corrected_genus_alpha" = genus_corrected_alpha,
-     "high_level_vars" = high_level_vars,
-     "corrected_high_level_vars" = corrected_high_level_vars,
-     "clindat" = tcga_counts$clindat,
-     "imm_cor" = tcga_counts$imm_cor,
-     "taxonomy" = taxonomy_nomissing)
+genus_analysis_list <- readRDS(genus_analysis_list, "data/genus_analysis_list.rds")
+
+imm_cor <- read_delim("~/Projects/tcga_micro/data/imm_cor_souce.tsv", delim = "\t")
+
+# limma corrected counts
+limma_hilevel_flat <- hilevel_limma_corrected_counts %>%
+  bind_rows() %>%
+  print()
+
+limma_alpha_flat <- limma_corrected_counts_alpha %>%
+  bind_rows() %%
+  print()
+
+pData(genus_counts_es_list$limma_corrected_counts) %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble() %>%
+  left_join(
+    
+    )
+  left_join(limma_corrected_counts_alpha, by = "tcga_barcode")
+  
+
+# cbseq corrected counts
+genus_counts_es_list$cbseq_corrected_counts
+  
+# uncorrected counts
+genus_counts_es_list$uncorrected_counts
+
+genus_analysis_list <- list(
+  "cbseq_corrected_high_level_vars" = hilevel_cbseq_corrected_counts,
+  "limma_corrected_high_level_vars" = hilevel_limma_corrected_counts,
+  "uncorrected_high_level_vars" = uncorrected_counts_df_list,
+  "cbseq_corrected_alpha" = cbseq_corrected_counts_alpha,
+  "limma_corrected_alpha" = limma_corrected_counts_alpha,
+  "uncorrected_alpha" = uncorrected_counts_alpha)
 saveRDS(genus_analysis_list, "data/genus_analysis_list.rds")
 
-species_analysis_list <- list("species_cpm_list" = tcga_counts$counts$species,
-    "")
 ```
 
 
