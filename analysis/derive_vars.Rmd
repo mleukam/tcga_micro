@@ -35,17 +35,6 @@ knitr::opts_chunk$set(eval = FALSE)
 Read in data
 From tcga_data_prep
 ```{r}
-# tcga_counts <- readRDS("data/comb_tcga_counts_list.rds")
-
-# mode 2 data
-# tcga_counts <- readRDS("data/mode2_tcga_counts_list.rds")
-
-# str(tcga_counts, max.level = 2)
-# genus_tbl <- tcga_counts$counts$genus$STAD %>%
-#  print()
-# imm_cor_tbl <- tcga_counts$imm_cor$STAD %>%
-#   print()
-
 # batch corrected and uncorrected data
 genus_counts_es_list <- readRDS("output/genus_combined_expressionsets.rds")
 str(genus_counts_es_list, max.level = 1)
@@ -81,6 +70,7 @@ counts_data <- map(genus_counts_es_list, bytumortyper)
 str(counts_data, max.level = 2)
 
 ```
+
 
 ```{bash}
 sshfs mjl62@o2.hms.harvard.edu:/n/scratch3/users/m/mw292/AGAMEMNON/TCGA/Results/ ~/sshfs_mount/TCGA
@@ -177,7 +167,7 @@ do.call(ggarrange, log_plot_list_genus_cpm_corrected) %>%
 
 ## Derive new variables
 
-#### CPM alpha diversity
+#### Alpha diversity
 
 ```{r}
 
@@ -403,7 +393,7 @@ limma_corrected_counts_alpha <- map(
   alpha_getter)
 ```
 
-
+Optional - plots of alpha variables
 ```{r}
 # plots
 cbseq_corrected_counts_alpha %>%
@@ -426,37 +416,6 @@ cbseq_corrected_counts_alpha %>%
 
 #### High-level taxonomy
 
-This block is now defunct
-```{r}
-# read in repaired toxonomy
-taxonomy_nomissing <- readRDS("data/tcga_proj_taxonomy_nomissing.rds")
-# problem - Tissierella_Class is still called ---_Class
-taxonomy_nomissing <- taxonomy_nomissing %>% 
-  mutate(Genus = ifelse(Genus == 	"---_Class", "Tissierella_Class", Genus)) %>%
-  arrange(Genus) %>%
-  print()
-
-# repair counts not generated with repaired taxonomy
-kingdom_list_element <- tcga_counts$cpm_counts$kingdom_cpm$ACC
-
-high_leveler <- function(kingdom_list_element){
-  fractional_kingdom <- kingdom_list_element %>%
-    dplyr::rename(viral = `---`, archaea = Archaea, 
-                  bacteria = Bacteria, 
-                  eukaryota = Eukaryota) %>%
-    mutate(total_cpm = viral + archaea + bacteria + eukaryota) %>%
-    mutate(across(-c(tcga_barcode, total_cpm), ~ . / total_cpm, .names = "frac_{.col}")) %>%
-    dplyr::rename(microbe_cpm = total_cpm)
-}
-
-# apply function
-kingdom_cpm_list <- tcga_counts$counts$kingdom
-high_level_vars <- map(kingdom_list, high_leveler)
-names(high_level_vars) <- names(kingdom_list)
-high_level_vars
-```
-
-Start with this block 
 ```{r}
 # get high level taxonomy data for corrected genus CPM
 kingdom_lookup <- taxonomy_nomissing %>%
@@ -512,55 +471,214 @@ higher_leveler <- function(tcga_list){
 
 hilevel_cbseq_corrected_counts <- higher_leveler(cbseq_corrected_counts_df_list)
 
-hilevel_cbseq_uncorrected_counts <- higher_leveler(uncorrected_counts_df_list)
+hilevel_uncorrected_counts <- higher_leveler(uncorrected_counts_df_list)
 
 hilevel_limma_corrected_counts <- higher_leveler(limma_corrected_counts_df_list)
-```
 
-## CAN START HERE NEEDS REPAIR Write out results
-```{r}
-genus_analysis_list <- readRDS(genus_analysis_list, "data/genus_analysis_list.rds")
-
-imm_cor <- read_delim("~/Projects/tcga_micro/data/imm_cor_souce.tsv", delim = "\t")
-
-# limma corrected counts
-limma_hilevel_flat <- hilevel_limma_corrected_counts %>%
-  bind_rows() %>%
-  print()
-
-limma_alpha_flat <- limma_corrected_counts_alpha %>%
-  bind_rows() %%
-  print()
-
-pData(genus_counts_es_list$limma_corrected_counts) %>%
-  rownames_to_column(var = "tcga_barcode") %>%
-  as_tibble() %>%
-  left_join(
-    
-    )
-  left_join(limma_corrected_counts_alpha, by = "tcga_barcode")
-  
-
-# cbseq corrected counts
-genus_counts_es_list$cbseq_corrected_counts
-  
-# uncorrected counts
-genus_counts_es_list$uncorrected_counts
-
+# save interim results
 genus_analysis_list <- list(
   "cbseq_corrected_high_level_vars" = hilevel_cbseq_corrected_counts,
   "limma_corrected_high_level_vars" = hilevel_limma_corrected_counts,
-  "uncorrected_high_level_vars" = uncorrected_counts_df_list,
+  "uncorrected_high_level_vars" = hilevel_uncorrected_counts,
   "cbseq_corrected_alpha" = cbseq_corrected_counts_alpha,
   "limma_corrected_alpha" = limma_corrected_counts_alpha,
   "uncorrected_alpha" = uncorrected_counts_alpha)
 saveRDS(genus_analysis_list, "data/genus_analysis_list.rds")
+```
+
+## Write out results
+
+Add derived variables to phenodata for each data type
+```{r}
+genus_analysis_list <- readRDS("data/genus_analysis_list.rds")
+
+imm_cor <- read_delim("~/Projects/tcga_micro/data/imm_cor_souce.tsv", delim = "\t") %>%
+  rename(tcga_barcode = `TCGA Participant Barcode`)
+
+# limma corrected counts
+limma_hilevel_flat <- genus_analysis_list$limma_corrected_high_level_vars %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  print()
+
+limma_alpha_flat <- genus_analysis_list$limma_corrected_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  print()
+
+limma_pdata <- pData(genus_counts_es_list$limma_corrected_counts) %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble() %>%
+  left_join(limma_hilevel_flat) %>%
+  left_join(limma_alpha_flat) %>%
+  left_join(imm_cor) %>%
+  print()
+
+# cbseq corrected counts
+cbseq_hilevel_flat <- genus_analysis_list$cbseq_corrected_high_level_vars %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  print()
+
+cbseq_alpha_flat <- genus_analysis_list$cbseq_corrected_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  print()
+
+cbseq_pdata <- pData(genus_counts_es_list$cbseq_corrected_counts) %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble() %>%
+  left_join(cbseq_hilevel_flat) %>%
+  left_join(cbseq_alpha_flat) %>%
+  left_join(imm_cor) %>%
+  print()
+  
+# uncorrected counts
+uncorrected_hilevel_flat <- genus_analysis_list$uncorrected_high_level_vars %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  print()
+
+uncorrected_alpha_flat <- genus_analysis_list$uncorrected_alpha %>%
+  enframe() %>%
+  unnest(value) %>%
+  rename(tcga_proj = name) %>%
+  print()
+
+uncorrected_pdata <- pData(genus_counts_es_list$uncorrected_counts) %>%
+  rownames_to_column(var = "tcga_barcode") %>%
+  as_tibble() %>%
+  left_join(uncorrected_hilevel_flat) %>%
+  left_join(uncorrected_alpha_flat) %>%
+  left_join(imm_cor) %>%
+  print()
 
 ```
 
-
-#### Beta diversity
+COMBATseq corrected counts
 ```{r}
 
+# convert pdata to dataframe
+cbseq_pdata_df <- cbseq_pdata %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode") 
+# pdata variable annotation
+v_metadata <- data.frame(
+  labelDescription = colnames(cbseq_pdata_df),
+  row.names = colnames(cbseq_pdata_df))
+# make annotated phenoData
+phenoData <- new("AnnotatedDataFrame", 
+                 data = cbseq_pdata_df, 
+                 varMetadata = v_metadata)
+phenoData
+
+# get counts
+counts_matrix <- exprs(genus_counts_es_list$cbseq_corrected_counts) 
+
+# check matchy matchy
+colnames(counts_matrix) %>% length()
+rownames(phenoData) %>% length()
+
+identical(colnames(counts_matrix), rownames(phenoData))
+
+# create global annotation
+annotation <- as.character("Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Missing counts converted to zeros. Batch corrected with ComBatSeq using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Summary indices, high-level taxonomic variables, and immune correlates included in phenodata.")
+
+# assemble expressionset
+cbseq_adj_es <- ExpressionSet(
+  assayData = counts_matrix,
+  phenoData = phenoData,
+  annotation = annotation)
+cbseq_adj_es
+
+# save
+saveRDS(cbseq_adj_es, "output/cbseq_genus_fullpdata_expressionset.rds")
 
 ```
+
+Limma corrected counts
+```{r}
+
+# convert pdata to dataframe
+limma_pdata_df <- limma_pdata %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode") 
+# pdata variable annotation
+v_metadata <- data.frame(
+  labelDescription = colnames(limma_pdata_df),
+  row.names = colnames(limma_pdata_df))
+# make annotated phenoData
+phenoData <- new("AnnotatedDataFrame", 
+                 data = limma_pdata_df, 
+                 varMetadata = v_metadata)
+phenoData
+
+# get counts
+counts_matrix <- exprs(genus_counts_es_list$limma_corrected_counts) 
+
+# check matchy matchy
+colnames(counts_matrix) %>% length()
+rownames(phenoData) %>% length()
+
+identical(colnames(counts_matrix), rownames(phenoData))
+
+# create global annotation
+annotation <- as.character("Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Missing counts converted to zeros. Batch corrected with limma using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Summary indices, high-level taxonomic variables, and immune correlates included in phenodata.")
+
+# assemble expressionset
+limma_adj_es <- ExpressionSet(
+  assayData = counts_matrix,
+  phenoData = phenoData,
+  annotation = annotation)
+limma_adj_es
+
+# save
+saveRDS(limma_adj_es, "output/limma_genus_fullpdata_expressionset.rds")
+
+```
+
+Uncorrected counts
+```{r}
+# convert pdata to dataframe
+uncorrected_pdata_df <- uncorrected_pdata %>%
+  as.data.frame() %>%
+  column_to_rownames(var = "tcga_barcode") 
+# pdata variable annotation
+v_metadata <- data.frame(
+  labelDescription = colnames(uncorrected_pdata_df),
+  row.names = colnames(uncorrected_pdata_df))
+# make annotated phenoData
+phenoData <- new("AnnotatedDataFrame", 
+                 data = uncorrected_pdata_df, 
+                 varMetadata = v_metadata)
+phenoData
+
+# get counts
+counts_matrix <- exprs(genus_counts_es_list$uncorrected_counts) 
+
+# check matchy matchy
+colnames(counts_matrix) %>% length()
+rownames(phenoData) %>% length()
+
+identical(colnames(counts_matrix), rownames(phenoData))
+
+# create global annotation
+annotation <- as.character("Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Missing counts converted to zeros. No batch correction. Summary indices, high-level taxonomic variables, and immune correlates included in phenodata.")
+
+# assemble expressionset
+uncorrected_adj_es <- ExpressionSet(
+  assayData = counts_matrix,
+  phenoData = phenoData,
+  annotation = annotation)
+uncorrected_adj_es
+
+# save
+saveRDS(uncorrected_adj_es, "output/uncorrected_genus_fullpdata_expressionset.rds")
+
+```
+
