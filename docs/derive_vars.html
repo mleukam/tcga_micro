@@ -500,16 +500,16 @@ data/imm_cor_souce.tsv
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreea2d5153fca6f80a26203589fb4c85a8a54389f8etargetblanka2d5153a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/a2d5153fca6f80a26203589fb4c85a8a54389f8e" target="_blank">a2d5153</a> </a>
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreefca46852b0501d51131a8e64d64c37839bb9e059targetblankfca4685a"> <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span> <strong>Repository version:</strong> <a href="https://github.com/mleukam/tcga_micro/tree/fca46852b0501d51131a8e64d64c37839bb9e059" target="_blank">fca4685</a> </a>
 </p>
 </div>
-<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreea2d5153fca6f80a26203589fb4c85a8a54389f8etargetblanka2d5153a" class="panel-collapse collapse">
+<div id="strongRepositoryversionstrongahrefhttpsgithubcommleukamtcgamicrotreefca46852b0501d51131a8e64d64c37839bb9e059targetblankfca4685a" class="panel-collapse collapse">
 <div class="panel-body">
 <p>
 Great! You are using Git for version control. Tracking code development and connecting the code version to the results is critical for reproducibility.
 </p>
 <p>
-The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/a2d5153fca6f80a26203589fb4c85a8a54389f8e" target="_blank">a2d5153</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
+The results in this page were generated with repository version <a href="https://github.com/mleukam/tcga_micro/tree/fca46852b0501d51131a8e64d64c37839bb9e059" target="_blank">fca4685</a>. See the <em>Past versions</em> tab to see a history of the changes made to the R Markdown and HTML files.
 </p>
 <p>
 Note that you need to be careful to ensure that all relevant files for the analysis have been committed to Git prior to generating the results (you can use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only checks the R Markdown file, but you know if there are other scripts or data files that it depends on. Below is the status of the Git repository when the results were generated:
@@ -539,6 +539,7 @@ Ignored files:
     Ignored:    output/.Rapp.history
     Ignored:    output/africa/
     Ignored:    output/cbseq_corrected_genus_counts_expressionset.rds
+    Ignored:    output/cbseq_genus_fullpdata_expressionset.rds
     Ignored:    output/corrected_genus_counts_expressionset.rds
     Ignored:    output/corrected_genus_cpm_expressionset.rds
     Ignored:    output/corrected_genus_microcpm_expressionset.rds
@@ -555,6 +556,7 @@ Ignored files:
     Ignored:    output/genus_sumvar_correlations_spearman.rds
     Ignored:    output/global_high_level_correlations.csv
     Ignored:    output/limma_corrected_genus_counts_expressionset.rds
+    Ignored:    output/limma_genus_fullpdata_expressionset.rds
     Ignored:    output/mode2_counts_columnformat_draft.csv
     Ignored:    output/plots/
     Ignored:    output/tcga_batchcorrected_correlations_pearson.xlsx
@@ -565,6 +567,7 @@ Ignored files:
     Ignored:    output/unc_genus_microcpm_expressionset.rds
     Ignored:    output/uncorrected_genus_counts_expressionset.rds
     Ignored:    output/uncorrected_genus_cpm_expressionset.rds
+    Ignored:    output/uncorrected_genus_fullpdata_expressionset.rds
 
 Unstaged changes:
     Modified:   analysis/batch_correction.Rmd
@@ -606,6 +609,40 @@ Message
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/mleukam/tcga_micro/blob/fca46852b0501d51131a8e64d64c37839bb9e059/analysis/derive_vars.Rmd" target="_blank">fca4685</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-08-05
+</td>
+<td>
+wflow_publish(“analysis/derive_vars.Rmd”)
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/mleukam/tcga_micro/b607c01eb018e6538100978947e8e8cb77e78fb9/docs/derive_vars.html" target="_blank">b607c01</a>
+</td>
+<td>
+Michael Leukam
+</td>
+<td>
+2021-08-05
+</td>
+<td>
+Build site.
+</td>
+</tr>
 <tr>
 <td>
 Rmd
@@ -806,18 +843,7 @@ x tidyr::unpack()     masks Matrix::unpack()</code></pre>
 <pre class="r"><code>library(ggpubr)</code></pre>
 <pre class="r"><code>knitr::opts_chunk$set(eval = FALSE)</code></pre>
 <p>Read in data From tcga_data_prep</p>
-<pre class="r"><code># tcga_counts &lt;- readRDS(&quot;data/comb_tcga_counts_list.rds&quot;)
-
-# mode 2 data
-# tcga_counts &lt;- readRDS(&quot;data/mode2_tcga_counts_list.rds&quot;)
-
-# str(tcga_counts, max.level = 2)
-# genus_tbl &lt;- tcga_counts$counts$genus$STAD %&gt;%
-#  print()
-# imm_cor_tbl &lt;- tcga_counts$imm_cor$STAD %&gt;%
-#   print()
-
-# batch corrected and uncorrected data
+<pre class="r"><code># batch corrected and uncorrected data
 genus_counts_es_list &lt;- readRDS(&quot;output/genus_combined_expressionsets.rds&quot;)
 str(genus_counts_es_list, max.level = 1)
 
@@ -930,8 +956,8 @@ do.call(ggarrange, log_plot_list_genus_cpm_corrected) %&gt;%
 </div>
 <div id="derive-new-variables" class="section level2">
 <h2>Derive new variables</h2>
-<div id="cpm-alpha-diversity" class="section level4">
-<h4>CPM alpha diversity</h4>
+<div id="alpha-diversity" class="section level4">
+<h4>Alpha diversity</h4>
 <pre class="r"><code># get measures of alpha-diversity
 alpha_getter &lt;- function(df){
 # get global basic diversity indices
@@ -1152,6 +1178,7 @@ uncorrected_counts_alpha &lt;- map(
 limma_corrected_counts_alpha &lt;- map(
   limma_corrected_counts_df_list, 
   alpha_getter)</code></pre>
+<p>Optional - plots of alpha variables</p>
 <pre class="r"><code># plots
 cbseq_corrected_counts_alpha %&gt;%
   enframe() %&gt;%
@@ -1171,34 +1198,6 @@ cbseq_corrected_counts_alpha %&gt;%
 </div>
 <div id="high-level-taxonomy" class="section level4">
 <h4>High-level taxonomy</h4>
-<p>This block is now defunct</p>
-<pre class="r"><code># read in repaired toxonomy
-taxonomy_nomissing &lt;- readRDS(&quot;data/tcga_proj_taxonomy_nomissing.rds&quot;)
-# problem - Tissierella_Class is still called ---_Class
-taxonomy_nomissing &lt;- taxonomy_nomissing %&gt;% 
-  mutate(Genus = ifelse(Genus ==    &quot;---_Class&quot;, &quot;Tissierella_Class&quot;, Genus)) %&gt;%
-  arrange(Genus) %&gt;%
-  print()
-
-# repair counts not generated with repaired taxonomy
-kingdom_list_element &lt;- tcga_counts$cpm_counts$kingdom_cpm$ACC
-
-high_leveler &lt;- function(kingdom_list_element){
-  fractional_kingdom &lt;- kingdom_list_element %&gt;%
-    dplyr::rename(viral = `---`, archaea = Archaea, 
-                  bacteria = Bacteria, 
-                  eukaryota = Eukaryota) %&gt;%
-    mutate(total_cpm = viral + archaea + bacteria + eukaryota) %&gt;%
-    mutate(across(-c(tcga_barcode, total_cpm), ~ . / total_cpm, .names = &quot;frac_{.col}&quot;)) %&gt;%
-    dplyr::rename(microbe_cpm = total_cpm)
-}
-
-# apply function
-kingdom_cpm_list &lt;- tcga_counts$counts$kingdom
-high_level_vars &lt;- map(kingdom_list, high_leveler)
-names(high_level_vars) &lt;- names(kingdom_list)
-high_level_vars</code></pre>
-<p>Start with this block</p>
 <pre class="r"><code># get high level taxonomy data for corrected genus CPM
 kingdom_lookup &lt;- taxonomy_nomissing %&gt;%
   dplyr::select(Superkingdom, Genus) %&gt;%
@@ -1253,51 +1252,199 @@ higher_leveler &lt;- function(tcga_list){
 
 hilevel_cbseq_corrected_counts &lt;- higher_leveler(cbseq_corrected_counts_df_list)
 
-hilevel_cbseq_uncorrected_counts &lt;- higher_leveler(uncorrected_counts_df_list)
+hilevel_uncorrected_counts &lt;- higher_leveler(uncorrected_counts_df_list)
 
-hilevel_limma_corrected_counts &lt;- higher_leveler(limma_corrected_counts_df_list)</code></pre>
-</div>
-</div>
-<div id="can-start-here-needs-repair-write-out-results" class="section level2">
-<h2>CAN START HERE NEEDS REPAIR Write out results</h2>
-<pre class="r"><code>genus_analysis_list &lt;- readRDS(genus_analysis_list, &quot;data/genus_analysis_list.rds&quot;)
+hilevel_limma_corrected_counts &lt;- higher_leveler(limma_corrected_counts_df_list)
 
-imm_cor &lt;- read_delim(&quot;~/Projects/tcga_micro/data/imm_cor_souce.tsv&quot;, delim = &quot;\t&quot;)
-
-# limma corrected counts
-limma_hilevel_flat &lt;- hilevel_limma_corrected_counts %&gt;%
-  bind_rows() %&gt;%
-  print()
-
-limma_alpha_flat &lt;- limma_corrected_counts_alpha %&gt;%
-  bind_rows() %%
-  print()
-
-pData(genus_counts_es_list$limma_corrected_counts) %&gt;%
-  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
-  as_tibble() %&gt;%
-  left_join(
-    
-    )
-  left_join(limma_corrected_counts_alpha, by = &quot;tcga_barcode&quot;)
-  
-
-# cbseq corrected counts
-genus_counts_es_list$cbseq_corrected_counts
-  
-# uncorrected counts
-genus_counts_es_list$uncorrected_counts
-
+# save interim results
 genus_analysis_list &lt;- list(
   &quot;cbseq_corrected_high_level_vars&quot; = hilevel_cbseq_corrected_counts,
   &quot;limma_corrected_high_level_vars&quot; = hilevel_limma_corrected_counts,
-  &quot;uncorrected_high_level_vars&quot; = uncorrected_counts_df_list,
+  &quot;uncorrected_high_level_vars&quot; = hilevel_uncorrected_counts,
   &quot;cbseq_corrected_alpha&quot; = cbseq_corrected_counts_alpha,
   &quot;limma_corrected_alpha&quot; = limma_corrected_counts_alpha,
   &quot;uncorrected_alpha&quot; = uncorrected_counts_alpha)
 saveRDS(genus_analysis_list, &quot;data/genus_analysis_list.rds&quot;)</code></pre>
-<div id="beta-diversity" class="section level4">
-<h4>Beta diversity</h4>
+</div>
+</div>
+<div id="write-out-results" class="section level2">
+<h2>Write out results</h2>
+<p>Add derived variables to phenodata for each data type</p>
+<pre class="r"><code>genus_analysis_list &lt;- readRDS(&quot;data/genus_analysis_list.rds&quot;)
+
+imm_cor &lt;- read_delim(&quot;~/Projects/tcga_micro/data/imm_cor_souce.tsv&quot;, delim = &quot;\t&quot;) %&gt;%
+  rename(tcga_barcode = `TCGA Participant Barcode`)
+
+# limma corrected counts
+limma_hilevel_flat &lt;- genus_analysis_list$limma_corrected_high_level_vars %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  print()
+
+limma_alpha_flat &lt;- genus_analysis_list$limma_corrected_alpha %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  print()
+
+limma_pdata &lt;- pData(genus_counts_es_list$limma_corrected_counts) %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble() %&gt;%
+  left_join(limma_hilevel_flat) %&gt;%
+  left_join(limma_alpha_flat) %&gt;%
+  left_join(imm_cor) %&gt;%
+  print()
+
+# cbseq corrected counts
+cbseq_hilevel_flat &lt;- genus_analysis_list$cbseq_corrected_high_level_vars %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  print()
+
+cbseq_alpha_flat &lt;- genus_analysis_list$cbseq_corrected_alpha %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  print()
+
+cbseq_pdata &lt;- pData(genus_counts_es_list$cbseq_corrected_counts) %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble() %&gt;%
+  left_join(cbseq_hilevel_flat) %&gt;%
+  left_join(cbseq_alpha_flat) %&gt;%
+  left_join(imm_cor) %&gt;%
+  print()
+  
+# uncorrected counts
+uncorrected_hilevel_flat &lt;- genus_analysis_list$uncorrected_high_level_vars %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  print()
+
+uncorrected_alpha_flat &lt;- genus_analysis_list$uncorrected_alpha %&gt;%
+  enframe() %&gt;%
+  unnest(value) %&gt;%
+  rename(tcga_proj = name) %&gt;%
+  print()
+
+uncorrected_pdata &lt;- pData(genus_counts_es_list$uncorrected_counts) %&gt;%
+  rownames_to_column(var = &quot;tcga_barcode&quot;) %&gt;%
+  as_tibble() %&gt;%
+  left_join(uncorrected_hilevel_flat) %&gt;%
+  left_join(uncorrected_alpha_flat) %&gt;%
+  left_join(imm_cor) %&gt;%
+  print()</code></pre>
+<p>COMBATseq corrected counts</p>
+<pre class="r"><code># convert pdata to dataframe
+cbseq_pdata_df &lt;- cbseq_pdata %&gt;%
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) 
+# pdata variable annotation
+v_metadata &lt;- data.frame(
+  labelDescription = colnames(cbseq_pdata_df),
+  row.names = colnames(cbseq_pdata_df))
+# make annotated phenoData
+phenoData &lt;- new(&quot;AnnotatedDataFrame&quot;, 
+                 data = cbseq_pdata_df, 
+                 varMetadata = v_metadata)
+phenoData
+
+# get counts
+counts_matrix &lt;- exprs(genus_counts_es_list$cbseq_corrected_counts) 
+
+# check matchy matchy
+colnames(counts_matrix) %&gt;% length()
+rownames(phenoData) %&gt;% length()
+
+identical(colnames(counts_matrix), rownames(phenoData))
+
+# create global annotation
+annotation &lt;- as.character(&quot;Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Missing counts converted to zeros. Batch corrected with ComBatSeq using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Summary indices, high-level taxonomic variables, and immune correlates included in phenodata.&quot;)
+
+# assemble expressionset
+cbseq_adj_es &lt;- ExpressionSet(
+  assayData = counts_matrix,
+  phenoData = phenoData,
+  annotation = annotation)
+cbseq_adj_es
+
+# save
+saveRDS(cbseq_adj_es, &quot;output/cbseq_genus_fullpdata_expressionset.rds&quot;)</code></pre>
+<p>Limma corrected counts</p>
+<pre class="r"><code># convert pdata to dataframe
+limma_pdata_df &lt;- limma_pdata %&gt;%
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) 
+# pdata variable annotation
+v_metadata &lt;- data.frame(
+  labelDescription = colnames(limma_pdata_df),
+  row.names = colnames(limma_pdata_df))
+# make annotated phenoData
+phenoData &lt;- new(&quot;AnnotatedDataFrame&quot;, 
+                 data = limma_pdata_df, 
+                 varMetadata = v_metadata)
+phenoData
+
+# get counts
+counts_matrix &lt;- exprs(genus_counts_es_list$limma_corrected_counts) 
+
+# check matchy matchy
+colnames(counts_matrix) %&gt;% length()
+rownames(phenoData) %&gt;% length()
+
+identical(colnames(counts_matrix), rownames(phenoData))
+
+# create global annotation
+annotation &lt;- as.character(&quot;Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Missing counts converted to zeros. Batch corrected with limma using tumor type as experimental design and combination of sequencing center and plate (extracted from TCGA barcode) as batch effect. Summary indices, high-level taxonomic variables, and immune correlates included in phenodata.&quot;)
+
+# assemble expressionset
+limma_adj_es &lt;- ExpressionSet(
+  assayData = counts_matrix,
+  phenoData = phenoData,
+  annotation = annotation)
+limma_adj_es
+
+# save
+saveRDS(limma_adj_es, &quot;output/limma_genus_fullpdata_expressionset.rds&quot;)</code></pre>
+<p>Uncorrected counts</p>
+<pre class="r"><code># convert pdata to dataframe
+uncorrected_pdata_df &lt;- uncorrected_pdata %&gt;%
+  as.data.frame() %&gt;%
+  column_to_rownames(var = &quot;tcga_barcode&quot;) 
+# pdata variable annotation
+v_metadata &lt;- data.frame(
+  labelDescription = colnames(uncorrected_pdata_df),
+  row.names = colnames(uncorrected_pdata_df))
+# make annotated phenoData
+phenoData &lt;- new(&quot;AnnotatedDataFrame&quot;, 
+                 data = uncorrected_pdata_df, 
+                 varMetadata = v_metadata)
+phenoData
+
+# get counts
+counts_matrix &lt;- exprs(genus_counts_es_list$uncorrected_counts) 
+
+# check matchy matchy
+colnames(counts_matrix) %&gt;% length()
+rownames(phenoData) %&gt;% length()
+
+identical(colnames(counts_matrix), rownames(phenoData))
+
+# create global annotation
+annotation &lt;- as.character(&quot;Raw counts from Agamemnon mode 2 summarized at genus level (or if genus is not available, at the lowest available taxonomic group at genus or above). Cases with no counts removed. Missing counts converted to zeros. No batch correction. Summary indices, high-level taxonomic variables, and immune correlates included in phenodata.&quot;)
+
+# assemble expressionset
+uncorrected_adj_es &lt;- ExpressionSet(
+  assayData = counts_matrix,
+  phenoData = phenoData,
+  annotation = annotation)
+uncorrected_adj_es
+
+# save
+saveRDS(uncorrected_adj_es, &quot;output/uncorrected_genus_fullpdata_expressionset.rds&quot;)</code></pre>
 <br>
 <p>
 <button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
@@ -1306,7 +1453,6 @@ saveRDS(genus_analysis_list, &quot;data/genus_analysis_list.rds&quot;)</code></p
 </p>
 <div id="workflowr-sessioninfo" class="collapse">
 <pre class="r"><code>sessionInfo()</code></pre>
-</div>
 </div>
 </div>
 
